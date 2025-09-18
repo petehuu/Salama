@@ -252,7 +252,8 @@
 		        });
 		
 		        console.log(`✅ Salamahavaintoja: ${salamat.length} kpl`);
-		        salamat.forEach((s, i) => {
+				console.log(`✅ Näytetään ${valitut.length} lähintä salamaa:`);
+		        valitut.forEach((s, i) => {
 		            console.log(`${i + 1}. ${s.time.toLocaleString()} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
 		        });
 		    } catch (error) {
