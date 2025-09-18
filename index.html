@@ -260,22 +260,22 @@
 				}
 
 				console.log(`🔍 Salamahavaintoja haettu: ${salamat.length} kpl`);
-				console.log("📋 Ensimmäiset 5 ennen sorttausta:");
-				salamat.slice(0, 5).forEach((s, i) => {
-				    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
-				});
+				//console.log("📋 Ensimmäiset 5 ennen sorttausta:");
+				//salamat.slice(0, 5).forEach((s, i) => {
+				//    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
+				//});
 				
 				salamat.sort((a, b) => a.distance - b.distance);
-				console.log("📋 Ensimmäiset 5 sortin jälkeen:");
-				salamat.slice(0, 5).forEach((s, i) => {
-				    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
-				});
+				//console.log("📋 Ensimmäiset 5 sortin jälkeen:");
+				//salamat.slice(0, 5).forEach((s, i) => {
+				//    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
+				//});
 				const valitut = salamat.slice(0, lim);
-				console.log("📋 Ensimmäiset 10 rajoituksen jälkeen:");
-				const valitut2 = valitut.slice(0, 10);
-				valitut2.forEach((s, i) => {
-				    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
-				});
+				//console.log("📋 Ensimmäiset 10 rajoituksen jälkeen:");
+				//const valitut2 = valitut.slice(0, 10);
+				//valitut2.forEach((s, i) => {
+				//    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
+				//});
 
 				valitut.forEach((s, i) => {
 					if (
@@ -303,7 +303,7 @@
 				    ).openTooltip();
 				});
 		
-		        console.log(`✅ Salamahavaintoja: ${salamat.length} kpl`);
+		        //console.log(`✅ Salamahavaintoja: ${salamat.length} kpl`);
 				console.log(`✅ Näytetään ${valitut.length} lähintä salamaa:`);
 		        valitut.forEach((s, i) => {
 		            console.log(`${i + 1}. ${s.time.toLocaleString()} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
