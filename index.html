@@ -130,7 +130,7 @@
 		            hash += `&beg=${formatCompactTime(beg)}`;
 		        }
 		
-		        if (end && typeof end.getFullYear === 'function') {
+		        if (end instanceof Date) {
 				    hash += `&end=${formatCompactTime(end)}`;
 				}
 		
