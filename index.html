@@ -30,6 +30,15 @@
     <h1>Salamat</h1>
     <div id="map"></div>
     <script>
+		function parseCompactTime(str) {
+		    if (!str || str.length !== 10) return null;
+		    const yy = parseInt(str.slice(0, 2), 10) + 2000;
+		    const MM = parseInt(str.slice(2, 4), 10) - 1;
+		    const dd = parseInt(str.slice(4, 6), 10);
+		    const hh = parseInt(str.slice(6, 8), 10);
+		    const mm = parseInt(str.slice(8, 10), 10);
+		    return new Date(yy, MM, dd, hh, mm);
+		}
         function getHashParams() {
             const hash = window.location.hash.substring(1);
             const params = new URLSearchParams(hash);
@@ -41,13 +50,11 @@
                 zoom: parseInt(params.get('zoom')) || 8,
                 markerLat: parseFloat(params.get('markerLat')),
                 markerLng: parseFloat(params.get('markerLng')),
-				beg: params.get('beg') || defaultBeg,
-				end: params.get('end') || null,
+				beg: parseCompactTime(params.get('beg')) || defaultBeg,
+        		end: parseCompactTime(params.get('end')) || null,
 				lim: parseInt(params.get('lim')) || 100
-
             };
         }
-        
 
         const { lat, lng, zoom, markerLat, markerLng } = getHashParams();
 		let { beg, end, lim } = getHashParams();
@@ -103,6 +110,14 @@
 				updateHash();
 			});
 		});	
+		function formatCompactTime(date) {
+		    const yy = String(date.getFullYear()).slice(2); // esim. 2025 → "25"
+		    const MM = String(date.getMonth() + 1).padStart(2, '0'); // kuukausi 0–11 → 01–12
+		    const dd = String(date.getDate()).padStart(2, '0');
+		    const hh = String(date.getHours()).padStart(2, '0');
+		    const mm = String(date.getMinutes()).padStart(2, '0');
+		    return `${yy}${MM}${dd}${hh}${mm}`;
+		}
         function updateHash() {
             const center = map.getCenter();
             const zoomLevel = map.getZoom();
@@ -112,11 +127,11 @@
                 hash += `&markerLat=${markerPos.lat}&markerLng=${markerPos.lng}`;
 				
 				if (typeof beg !== 'undefined' && beg !== null) {
-		            hash += `&beg=${encodeURIComponent(beg)}`;
+		            hash += `&beg=${formatCompactTime(beg)}`;
 		        }
 		
 		        if (typeof end !== 'undefined' && end !== null) {
-		            hash += `&end=${encodeURIComponent(end)}`;
+		            hash += `&end=${formatCompactTime(end)}`;
 		        }
 		
 		        if (typeof lim === 'number') {
