@@ -202,7 +202,16 @@
 		                fillOpacity: 0.9
 		            }).addTo(map);
 		
-		            marker.bindPopup(`⚡ Salama<br>Aika: ${time.toLocaleString()}<br>Etäisyys: ${distance.toFixed(1)} km`);
+					marker.bindTooltip(
+					    `⚡ ${time.toLocaleTimeString()}<br>📏 ${distance.toFixed(1)} km`,
+					    {
+					        permanent: true,
+					        direction: 'top',
+					        offset: [0, -10],
+					        className: 'lightning-tooltip'
+					    }
+					).openTooltip();
+
 		        }
 		
 		        console.log(`✅ Salamahavaintoja: ${salamat.length} kpl`);
