@@ -233,9 +233,12 @@
 				salamat.slice(0, 5).forEach((s, i) => {
 				    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
 				});
-
 				
 				salamat.sort((a, b) => a.distance - b.distance);
+				console.log("📋 Ensimmäiset 5 sortin jälkeen:");
+				salamat.slice(0, 5).forEach((s, i) => {
+				    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
+				});
 				const valitut = salamat.slice(0, lim);
 
 				valitut.forEach((s, i) => {
