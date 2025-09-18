@@ -130,9 +130,9 @@
 		            hash += `&beg=${formatCompactTime(beg)}`;
 		        }
 		
-		        if (typeof end !== 'undefined' && end !== null) {
-		            hash += `&end=${formatCompactTime(end)}`;
-		        }
+		        if (end && typeof end.getFullYear === 'function') {
+				    hash += `&end=${formatCompactTime(end)}`;
+				}
 		
 		        if (typeof lim === 'number') {
 		            hash += `&lim=${lim}`;
