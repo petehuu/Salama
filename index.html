@@ -168,8 +168,22 @@
 			return parseFloat(height);
 		}
 
+		function getBBoxFromPoint(lat, lon, radiusKm = 100) {
+		    const latOffset = radiusKm / 111; // leveysasteen muutos
+		    const lonOffset = radiusKm / (111 * Math.cos(lat * Math.PI / 180)); // pituusasteen muutos
+		
+		    const south = lat - latOffset;
+		    const north = lat + latOffset;
+		    const west = lon - lonOffset;
+		    const east = lon + lonOffset;
+		
+		    return `${west.toFixed(6)},${south.toFixed(6)},${east.toFixed(6)},${north.toFixed(6)}`;
+		}
+
 		async function fetchAndDrawLightning(latClicked, lonClicked) {
-		    const url = "https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=2023-08-16T19:00:00Z&endtime=2023-08-16T19:01:59Z";
+			const bbox = getBBoxFromPoint(latClicked, lonClicked);
+			const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${start}&endtime=${end}&bbox=${bbox}`;
+
 		
 		    try {
 		        const response = await fetch(url);
