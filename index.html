@@ -195,7 +195,7 @@
 		
 		        const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
 		        if (!positionsText) {
-		            console.warn("Ei löytynyt salamapositioita.");
+		            console.warn("⚠️ Ei löytynyt salamapositioita.");
 		            return;
 		        }
 		
@@ -212,25 +212,23 @@
 		            salamat.push({ lat, lon, time, distance });
 		
 		            const marker = L.circleMarker([lat, lon], {
-		                radius: 6,
-		                color: 'purple',
+		                radius: 8,
+		                color: 'red',
 		                fillColor: 'yellow',
-		                fillOpacity: 0.8
+		                fillOpacity: 0.9
 		            }).addTo(map);
 		
 		            marker.bindPopup(`⚡ Salama<br>Aika: ${time.toLocaleString()}<br>Etäisyys: ${distance.toFixed(1)} km`);
 		        }
 		
-		        console.log(`Salamat (${salamat.length} kpl):`);
+		        console.log(`✅ Salamahavaintoja: ${salamat.length} kpl`);
 		        salamat.forEach((s, i) => {
 		            console.log(`${i + 1}. ${s.time.toLocaleString()} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
 		        });
 		    } catch (error) {
-		        console.error("Virhe salamatietojen haussa:", error);
+		        console.error("❌ Virhe salamatietojen haussa:", error);
 		    }
 		}
-
-
 
     </script>
 </body>
