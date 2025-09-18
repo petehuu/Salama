@@ -33,13 +33,15 @@
         function getHashParams() {
             const hash = window.location.hash.substring(1);
             const params = new URLSearchParams(hash);
+			const now = new Date();
+    		const defaultBeg = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
             return {
                 lat: parseFloat(params.get('lat')) || 60.1695,
                 lng: parseFloat(params.get('lng')) || 24.9354,
                 zoom: parseInt(params.get('zoom')) || 8,
                 markerLat: parseFloat(params.get('markerLat')),
                 markerLng: parseFloat(params.get('markerLng')),
-				beg: params.get('beg') || null,
+				beg: params.get('beg') || defaultBeg,
 				end: params.get('end') || null,
 				lim: parseInt(params.get('lim')) || 100
 
@@ -191,7 +193,14 @@
 			//const start = "2025-09-17T00:00:00Z";
 			//const end = "2025-09-17T23:59:59Z";
 			//const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${start}&endtime=${end}&bbox=${bbox}`;
-			const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg}&endtime=${end}&bbox=${bbox}`;
+			//const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg}&endtime=${end}&bbox=${bbox}`;
+			
+			let url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg}`;
+			if (end) {
+			    url += `&endtime=${end}`;
+			}
+			url += `&bbox=${bbox}`;
+
 			console.log(`url : ${url}`);
 		
 		    try {
