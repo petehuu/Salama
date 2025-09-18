@@ -246,6 +246,13 @@
 				});
 
 				valitut.forEach((s, i) => {
+					if (
+				        typeof s.lat !== 'number' || isNaN(s.lat) ||
+				        typeof s.lon !== 'number' || isNaN(s.lon)
+				    ) {
+				        console.warn(`⚠️ Virheellinen koordinaatti havainnossa ${i + 1}:`, s);
+				        return; // ohita tämä havainto
+				    }
 				    const marker = L.circleMarker([s.lat, s.lon], {
 				        radius: 8,
 				        color: 'red',
