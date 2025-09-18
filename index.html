@@ -240,6 +240,10 @@
 				    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
 				});
 				const valitut = salamat.slice(0, lim);
+				console.log("📋 Ensimmäiset 5 rajoituksen jälkeen:");
+				valitut.slice(0, 5).forEach((s, i) => {
+				    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
+				});
 
 				valitut.forEach((s, i) => {
 		            const marker = L.circleMarker([lat, lon], {
