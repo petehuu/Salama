@@ -227,6 +227,13 @@
 		
 		            salamat.push({ lat, lon, time, distance });
 				}
+
+				console.log(`🔍 Salamahavaintoja haettu: ${salamat.length} kpl`);
+				console.log("📋 Ensimmäiset 5 ennen sorttausta:");
+				salamat.slice(0, 5).forEach((s, i) => {
+				    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
+				});
+
 				
 				salamat.sort((a, b) => a.distance - b.distance);
 				const valitut = salamat.slice(0, lim);
