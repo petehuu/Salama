@@ -27,7 +27,7 @@
     </style>
 </head>
 <body>
-    <h1>Sunlight Time</h1>
+    <h1>Salamat</h1>
     <div id="map"></div>
     <script>
         function getHashParams() {
@@ -41,145 +41,7 @@
                 markerLng: parseFloat(params.get('markerLng'))
             };
         }
-        function drawLines(latitude, longitude, lineLength) {
-			// Hae auringon sijainti
-			const sunPosition = SunCalc.getPosition(new Date(), latitude, longitude);
-
-			// Muunna auringon atsimuutti radiaaneista asteiksi ja käännä se pohjoisesta myötäpäivään
-			const leafletAzimuth = (sunPosition.azimuth  * 180 / Math.PI + 180) % 360;
-			const sunAltitude    = sunPosition.altitude  * 180 / Math.PI;
-			console.log("Sun Azimuth=" + leafletAzimuth + " Altitude=" + sunAltitude);
-			
-			lineLayerGroup.clearLayers();
-
-			try {
-				const markerLatLng = L.GeometryUtil.destination(
-					L.latLng(latitude, longitude),
-					leafletAzimuth,
-					lineLength
-				);
-
-				// Piirrä punainen viiva
-				const redLine = L.polyline([
-					L.latLng(latitude, longitude),
-					markerLatLng
-				], {
-					color: 'red',
-					weight: 5
-				}).addTo(map);
-				redLine.addTo(lineLayerGroup);
-
-				// Hae auringonnousun ja auringonlaskun ajat
-				const times = SunCalc.getTimes(new Date(), latitude, longitude);
-				const sunriseTime = times.sunrise;
-				const sunsetTime = times.sunset;
-
-				// Laske auringonnousun ja auringonlaskun atsimuutit
-				const sunrisePosition = SunCalc.getPosition(sunriseTime, latitude, longitude);
-				const sunsetPosition = SunCalc.getPosition(sunsetTime, latitude, longitude);
-				// Muunna auringonnousun ja auringonlaskun atsimuutit radiaaneista asteiksi ja käännä ne pohjoisesta myötäpäivään
-				const sunriseAzimuth = (sunrisePosition.azimuth * 180 / Math.PI + 180) % 360;
-				const sunsetAzimuth = (sunsetPosition.azimuth * 180 / Math.PI + 180) % 360;
-
-				// Laske viivojen päätepisteet
-				const sunriseLatLng = L.GeometryUtil.destination(
-					L.latLng(latitude, longitude),
-					sunriseAzimuth,
-					lineLength
-				);
-				const sunsetLatLng = L.GeometryUtil.destination(
-					L.latLng(latitude, longitude),
-					sunsetAzimuth,
-					lineLength
-				);
-
-				// Piirrä viivat kartalle
-				const RiseLine = L.polyline([
-					L.latLng(latitude, longitude), // Aloituspiste
-					sunriseLatLng // Päätepiste
-				], {
-					color: 'orange', // Viivan väri
-					weight: 5 // Viivan paksuus
-				}).addTo(map);
-				RiseLine.addTo(lineLayerGroup);
-				const SetLine = L.polyline([
-					L.latLng(latitude, longitude), // Aloituspiste
-					sunsetLatLng // Päätepiste
-				], {
-					color: 'orange', // Viivan väri
-					weight: 5 // Viivan paksuus
-				}).addTo(map);
-				SetLine.addTo(lineLayerGroup);
-				
-				  // Hae kuun sijainti
-				  const moonPosition = SunCalc.getMoonPosition(new Date(), latitude, longitude);
-				  // Muunna kuun atsimuutti radiaaneista asteiksi ja käännä se pohjoisesta myötäpäivään
-				  const moonAzimuth = (moonPosition.azimuth * 180 / Math.PI + 180) % 360;
-				  var moonAltitude  = moonPosition.altitude * 180 / Math.PI;
-				  console.log("Moon Azimuth=" + moonAzimuth + " Altitude=" + moonAltitude);
-				  // Laske viivan päätepisteet
-				  const moonLatLng = L.GeometryUtil.destination(
-					L.latLng(latitude, longitude),
-					moonAzimuth,
-					lineLength
-				  );
-				  // Piirrä viiva kartalle
-				  const moonLine = L.polyline([
-					L.latLng(latitude, longitude), // Aloituspiste
-					moonLatLng // Päätepiste
-				  ], {
-					color: 'blue', // Viivan väri
-					weight: 5 // Viivan paksuus
-				  }).addTo(map);
-				  moonLine.addTo(lineLayerGroup);
-
-				  var Moon_times = SunCalc.getMoonTimes(new Date(), latitude, longitude);
-				  console.log("Moonrise=" + Moon_times.rise);  
-				  var Moonrise_pos = SunCalc.getMoonPosition(Moon_times.rise, latitude, longitude);
-				  var moonriseAzimuth = Moonrise_pos.azimuth * 180 / Math.PI + 180;
-				  var moonriseAltitude = Moonrise_pos.altitude * 180 / Math.PI;
-				  console.log("Moonrise Azimuth=" + moonriseAzimuth + " Altitude=" + moonriseAltitude);
-				  console.log("Moonset=" + Moon_times.set); 
-				  var Moonset_pos = SunCalc.getMoonPosition(Moon_times.set, latitude, longitude);
-				  var moonsetAzimuth = Moonset_pos.azimuth * 180 / Math.PI + 180;
-				  var moonsetAltitude = Moonset_pos.altitude * 180 / Math.PI;
-				  console.log("Moonset Azimuth=" + moonsetAzimuth + " Altitude=" + moonsetAltitude);
-				  //var Moon_illum = SunCalc.getMoonIllumination(new Date('2023-01-07T00:00:00'));
-				  var Moon_illum = SunCalc.getMoonIllumination(new Date());
-				  console.log("Moon illumination=" + (100*Moon_illum.fraction).toFixed(2) + "%");
-				  console.log("Moon phase=" + Moon_illum.phase);
-				// Laske viivojen päätepisteet
-				const moonriseLatLng = L.GeometryUtil.destination(
-					L.latLng(latitude, longitude),
-					moonriseAzimuth,
-					lineLength
-				);
-				const moonsetLatLng = L.GeometryUtil.destination(
-					L.latLng(latitude, longitude),
-					moonsetAzimuth,
-					lineLength
-				);
-				// Piirrä viivat kartalle
-				const moonRiseLine = L.polyline([
-					L.latLng(latitude, longitude), // Aloituspiste
-					moonriseLatLng // Päätepiste
-				], {
-					color: 'green', // Viivan väri
-					weight: 5 // Viivan paksuus
-				}).addTo(map);
-				moonRiseLine.addTo(lineLayerGroup);
-				const moonSetLine = L.polyline([
-					L.latLng(latitude, longitude), // Aloituspiste
-					moonsetLatLng // Päätepiste
-				], {
-					color: 'green', // Viivan väri
-					weight: 5 // Viivan paksuus
-				}).addTo(map);
-				moonSetLine.addTo(lineLayerGroup);
-			} catch (error) {
-				console.error('Virhe L.GeometryUtil.destination() -funktion kutsussa:', error);
-			}
-		}
+        
 
         const { lat, lng, zoom, markerLat, markerLng } = getHashParams();
 
@@ -211,8 +73,6 @@
         let marker;
         if (markerLat && markerLng) {
             marker = L.marker([markerLat, markerLng]).addTo(map);
-            // Piirrä viivat
-			drawLines(markerLat, markerLng, lineLength);
             fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
         }
 
@@ -225,12 +85,7 @@
 			map.on('click', async function(event) {
 				const latitude = event.latlng.lat;
 				const longitude = event.latlng.lng;
-				
-				// Piirrä viivat
-				drawLines(latitude, longitude, lineLength);
-
-
-				
+							
 				if (marker) {
 					map.removeLayer(marker);
 				}
