@@ -92,6 +92,7 @@
 				marker = L.marker([latitude, longitude]).addTo(map);
 				marker.bindPopup('Fetching elevation data...').openPopup();
 				await fetchElevationAndUpdatePopup(latitude, longitude, marker);
+				await fetchAndDrawLightning(latitude, longitude);
 				updateHash();
 			});
 		});	
@@ -181,6 +182,42 @@
 			const lines = data.split("\n");
 			const height = parseFloat(lines[6]).toFixed(2);
 			return parseFloat(height);
+		}
+
+		async function fetchAndDrawLightning(latClicked, lonClicked) {
+		    const url = "https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=2023-08-16T19:00:00Z&endtime=2023-08-16T19:01:59Z";
+		
+		    try {
+		        const response = await fetch(url);
+		        const text = await response.text();
+		        const parser = new DOMParser();
+		        const xmlDoc = parser.parseFromString(text, "application/xml");
+		
+		        const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0].textContent.trim();
+		        const positions = positionsText.split(/\s+/);
+		
+		        for (let i = 0; i < positions.length; i += 3) {
+		            const lat = parseFloat(positions[i]);
+		            const lon = parseFloat(positions[i + 1]);
+		            const timestamp = parseInt(positions[i + 2]) * 1000;
+		            const time = new Date(timestamp);
+		
+		            const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000; // km
+		
+		            const marker = L.circleMarker([lat, lon], {
+		                radius: 6,
+		                color: 'purple',
+		                fillColor: 'yellow',
+		                fillOpacity: 0.8
+		            }).addTo(map);
+		
+		            marker.bindPopup(`⚡ Salama<br>Aika: ${time.toLocaleString()}<br>Etäisyys: ${distance.toFixed(1)} km`);
+		        }
+		
+		        console.log("Salamat lisätty kartalle.");
+		    } catch (error) {
+		        console.error("Virhe salamatietojen haussa:", error);
+		    }
 		}
 
 
