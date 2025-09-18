@@ -193,16 +193,23 @@
 		        const parser = new DOMParser();
 		        const xmlDoc = parser.parseFromString(text, "application/xml");
 		
-		        const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0].textContent.trim();
+		        const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
+		        if (!positionsText) {
+		            console.warn("Ei löytynyt salamapositioita.");
+		            return;
+		        }
+		
 		        const positions = positionsText.split(/\s+/);
+		        const salamat = [];
 		
 		        for (let i = 0; i < positions.length; i += 3) {
 		            const lat = parseFloat(positions[i]);
 		            const lon = parseFloat(positions[i + 1]);
 		            const timestamp = parseInt(positions[i + 2]) * 1000;
 		            const time = new Date(timestamp);
-		
 		            const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000; // km
+		
+		            salamat.push({ lat, lon, time, distance });
 		
 		            const marker = L.circleMarker([lat, lon], {
 		                radius: 6,
@@ -214,11 +221,15 @@
 		            marker.bindPopup(`⚡ Salama<br>Aika: ${time.toLocaleString()}<br>Etäisyys: ${distance.toFixed(1)} km`);
 		        }
 		
-		        console.log("Salamat lisätty kartalle.");
+		        console.log(`Salamat (${salamat.length} kpl):`);
+		        salamat.forEach((s, i) => {
+		            console.log(`${i + 1}. ${s.time.toLocaleString()} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
+		        });
 		    } catch (error) {
 		        console.error("Virhe salamatietojen haussa:", error);
 		    }
 		}
+
 
 
     </script>
