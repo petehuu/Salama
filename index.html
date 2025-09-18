@@ -182,6 +182,7 @@
 
 		async function fetchAndDrawLightning(latClicked, lonClicked) {
 			const bbox = getBBoxFromPoint(latClicked, lonClicked);
+			console.log(`bbox : ${bbox}`);
 			const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${start}&endtime=${end}&bbox=${bbox}`;
 
 		
