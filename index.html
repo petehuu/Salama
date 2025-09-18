@@ -127,10 +127,12 @@
                 hash += `&markerLat=${markerPos.lat}&markerLng=${markerPos.lng}`;
 				
 				if (typeof beg !== 'undefined' && beg !== null) {
+					console.log('beg:', beg);
 		            hash += `&beg=${formatCompactTime(beg)}`;
 		        }
 		
 		        if (end instanceof Date) {
+					console.log('end:', end);
 				    hash += `&end=${formatCompactTime(end)}`;
 				}
 		
