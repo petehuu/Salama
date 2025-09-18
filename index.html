@@ -37,7 +37,7 @@
 		    const dd = parseInt(str.slice(4, 6), 10);
 		    const hh = parseInt(str.slice(6, 8), 10);
 		    const mm = parseInt(str.slice(8, 10), 10);
-		    return new Date(yy, MM, dd, hh, mm);
+		    return new Date(yy, MM, dd, hh, mm).toISOString();
 		}
         function getHashParams() {
             const hash = window.location.hash.substring(1);
@@ -50,8 +50,8 @@
                 zoom: parseInt(params.get('zoom')) || 8,
                 markerLat: parseFloat(params.get('markerLat')),
                 markerLng: parseFloat(params.get('markerLng')),
-				beg: parseCompactTime(params.get('beg')).toISOString() || defaultBeg,
-        		end: parseCompactTime(params.get('end')).toISOString() || null,
+				beg: parseCompactTime(params.get('beg')) || defaultBeg,
+        		end: parseCompactTime(params.get('end')) || null,
 				lim: parseInt(params.get('lim')) || 100
             };
         }
