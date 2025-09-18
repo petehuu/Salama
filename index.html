@@ -50,6 +50,7 @@
         
 
         const { lat, lng, zoom, markerLat, markerLng } = getHashParams();
+		let { beg, end, lim } = getHashParams();
 
         let map = L.map('map').setView([lat, lng], zoom);
 
@@ -109,6 +110,18 @@
             if (marker) {
                 const markerPos = marker.getLatLng();
                 hash += `&markerLat=${markerPos.lat}&markerLng=${markerPos.lng}`;
+				
+				if (typeof beg !== 'undefined' && beg !== null) {
+		            hash += `&beg=${encodeURIComponent(beg)}`;
+		        }
+		
+		        if (typeof end !== 'undefined' && end !== null) {
+		            hash += `&end=${encodeURIComponent(end)}`;
+		        }
+		
+		        if (typeof lim === 'number') {
+		            hash += `&lim=${lim}`;
+		        }
             }
             window.location.hash = hash;
         }
