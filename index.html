@@ -226,7 +226,12 @@
 		            const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000; // km
 		
 		            salamat.push({ lat, lon, time, distance });
-		
+				}
+				
+				salamat.sort((a, b) => a.distance - b.distance);
+				const valitut = salamat.slice(0, lim);
+
+				valitut.forEach((s, i) => {
 		            const marker = L.circleMarker([lat, lon], {
 		                radius: 8,
 		                color: 'red',
