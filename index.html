@@ -179,11 +179,11 @@
 				const elevation = await fetchElevation(eastLower, eastUpper, northLower, northUpper);
 				const lightningStats = await fetchAndDrawLightning(lat, lng);
 	
-                const popupContent = `Location: ${locationName}<br>
-                                       Lat: ${lat.toFixed(5)}, Lon: ${lng.toFixed(5)}<br>
-                                       Elevation: ${elevation} meters<br>
-									   <b>Salamahavaintoja:</b> ${lightningStats.total}<br>
-									   <b>Lähellä (rajattu ${lim} kpl):</b> ${lightningStats.nearby}
+                const popupContent =   `Location: ${locationName}<br>
+                                    	Lat: ${lat.toFixed(5)}, Lon: ${lng.toFixed(5)}<br>
+                                       	Elevation: ${elevation} meters<br>
+			                           	<b>Salamahavaintoja 100 km säteellä:</b> ${lightningStats.total}<br>
+			                           	<b>Näytetään lähimmät (${lim} kpl):</b> ${lightningStats.nearby}
 									   `;
 				
 				marker.bindPopup(popupContent).openPopup();
