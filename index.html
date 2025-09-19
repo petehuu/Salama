@@ -177,11 +177,14 @@
 				const northUpper = (Number(north) + 4).toString().padStart(7, '0').slice(-7);
 
 				const elevation = await fetchElevation(eastLower, eastUpper, northLower, northUpper);
-		
-		
-		                const popupContent = `Location: ${locationName}<br>
-		                                        Lat: ${lat.toFixed(5)}, Lon: ${lng.toFixed(5)}<br>
-		                                        Elevation: ${elevation} meters<br>`;
+				const lightningStats = await fetchAndDrawLightning(lat, lng);
+	
+                const popupContent = `Location: ${locationName}<br>
+                                       Lat: ${lat.toFixed(5)}, Lon: ${lng.toFixed(5)}<br>
+                                       Elevation: ${elevation} meters<br>
+									   <b>Salamahavaintoja:</b> ${lightningStats.total}<br>
+									   <b>Lähellä (rajattu ${lim} kpl):</b> ${lightningStats.nearby}
+									   `;
 				
 				marker.bindPopup(popupContent).openPopup();
 			} catch (error) {
@@ -311,7 +314,12 @@
 		        });
 		    } catch (error) {
 		        console.error("❌ Virhe salamatietojen haussa:", error);
-		    }
+		    };
+			return {
+			    total: salamat.length,
+			    nearby: valitut.length
+			};
+
 		}
 
     </script>
