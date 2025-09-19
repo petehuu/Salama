@@ -88,6 +88,7 @@
         if (markerLat && markerLng) {
             marker = L.marker([markerLat, markerLng]).addTo(map);
             fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
+			await fetchAndDrawLightning(latitude, longitude);
         }
 
 
