@@ -272,7 +272,7 @@
 		        const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
 		        if (!positionsText) {
 		            console.warn("⚠️ Ei löytynyt salamapositioita.");
-		            return;
+		            return { total: 0, nearby: 0 };
 		        }
 		
 		        const positions = positionsText.split(/\s+/);
