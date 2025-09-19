@@ -312,14 +312,14 @@
 		        valitut.forEach((s, i) => {
 		            console.log(`${i + 1}. ${s.time.toLocaleString()} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
 		        });
+				return {
+				    total: salamat.length,
+				    nearby: valitut.length
+				};
+
 		    } catch (error) {
 		        console.error("❌ Virhe salamatietojen haussa:", error);
 		    };
-			return {
-			    total: salamat.length,
-			    nearby: valitut.length
-			};
-
 		}
 
     </script>
