@@ -83,10 +83,12 @@
 		const scale = map.getScaleZoom(zoomLevel);
 		const lineLength = 50000 / scale; // Viivan pituus pikseleinä
 		const lineLayerGroup = L.layerGroup().addTo(map);
+		let distanceCircles = [];
 
         let marker;
         if (markerLat && markerLng) {
             marker = L.marker([markerLat, markerLng]).addTo(map);
+			drawDistanceCircles(markerLat, markerLng)
             fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
 			fetchAndDrawLightning(markerLat, markerLng);
         }
@@ -106,6 +108,7 @@
 				}
 				marker = L.marker([latitude, longitude]).addTo(map);
 				marker.bindPopup('Fetching elevation data...').openPopup();
+				drawDistanceCircles(latitude, longitude);
 				await fetchElevationAndUpdatePopup(latitude, longitude, marker);
 				await fetchAndDrawLightning(latitude, longitude);
 				updateHash();
@@ -145,6 +148,28 @@
             window.location.hash = hash;
         }
 
+		function drawDistanceCircles(lat, lng) {
+		    // Poista vanhat ympyrät
+		    distanceCircles.forEach(c => map.removeLayer(c));
+		    distanceCircles = [];
+		
+		    const center = [lat, lng];
+		
+		    const circle1 = L.circle(center, {
+		        radius: 1000,
+		        color: 'blue',
+		        fillOpacity: 0.1
+		    }).addTo(map).bindTooltip("1 km", { permanent: true, direction: 'center' });
+		
+		    const circle10 = L.circle(center, {
+		        radius: 10000,
+		        color: 'green',
+		        fillOpacity: 0.1
+		    }).addTo(map).bindTooltip("10 km", { permanent: true, direction: 'center' });
+		
+		    distanceCircles.push(circle1, circle10);
+		}
+		
 		async function fetchElevationAndUpdatePopup(lat, lng, marker) {
 			try {
 				const locationResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
