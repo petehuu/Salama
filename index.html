@@ -162,31 +162,50 @@
         }
 
 		function drawDistanceCircles(lat, lng) {
-		    // Poista vanhat ympyrät
 		    distanceCircles.forEach(c => map.removeLayer(c));
 		    distanceCircles = [];
 		
 		    const center = [lat, lng];
 		
-		    const circle1 = L.circle(center, {
-		        radius: 1000,
-		        color: 'blue',
-		        fillOpacity: 0.1
-		    }).addTo(map).bindTooltip("1 km", { permanent: true, direction: 'bottom', offset: [0, 50]});
+		    const circles = [
+		        { radiusKm: 1, color: 'blue' },
+		        { radiusKm: 10, color: 'green' },
+		        { radiusKm: radiusKm, color: 'red' }
+		    ];
 		
-		    const circle10 = L.circle(center, {
-		        radius: 10000,
-		        color: 'green',
-		        fillOpacity: 0.1
-		    }).addTo(map).bindTooltip("10 km", { permanent: true, direction: 'bottom', offset: [0, 520] });
+		    circles.forEach(({ radiusKm, color }) => {
+		        const radiusMeters = radiusKm * 1000;
 		
-		    const circleCustom = L.circle(center, {
-		        radius: radiusKm * 1000,
-		        color: 'red',
-		        fillOpacity: 0.05
-	    	}).addTo(map).bindTooltip(`${radiusKm} km`, { permanent: true, direction: 'bottom', offset: [0, radiusKm * 55] });
-	
-	    	distanceCircles.push(circle1, circle10, circleCustom);
+		        const circle = L.circle(center, {
+		            radius: radiusMeters,
+		            color: color,
+		            fillOpacity: 0.1
+		        }).addTo(map);
+		
+		        const labelLatLng = pointOnCircle(center, radiusMeters, 180); // alareuna
+		
+		        const tooltip = L.tooltip({
+		            permanent: true,
+		            direction: 'top', // Näyttää tekstin ympyrän yläpuolelle, mutta koska se on alareunassa, teksti näkyy sisäänpäin
+		            className: 'circle-label'
+		        })
+		        .setContent(`${radiusKm} km`)
+		        .setLatLng(labelLatLng)
+		        .addTo(map);
+		
+		        distanceCircles.push(circle, tooltip);
+		    });
+		}
+
+		function pointOnCircle(center, radiusMeters, angleDegrees) {
+		    const angleRadians = angleDegrees * Math.PI / 180;
+		    const dx = radiusMeters * Math.cos(angleRadians);
+		    const dy = radiusMeters * Math.sin(angleRadians);
+		
+		    const offsetLat = dy / 111320; // leveysasteet/metri
+		    const offsetLng = dx / (40075000 * Math.cos(center[0] * Math.PI / 180) / 360); // pituusasteet/metri
+		
+		    return [center[0] + offsetLat, center[1] + offsetLng];
 		}
 
 		function formatShortDateTime(date) {
