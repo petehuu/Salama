@@ -93,7 +93,6 @@
             marker = L.marker([markerLat, markerLng]).addTo(map);
 			drawDistanceCircles(markerLat, markerLng)
             fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
-			fetchAndDrawLightning(markerLat, markerLng);
 			if (last) {
 				console.log('Haetaan viimeisimmät salamat');
 		        fetchLatestStrike(markerLat, markerLng);
