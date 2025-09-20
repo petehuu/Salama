@@ -50,8 +50,8 @@
                 zoom: parseInt(params.get('zoom')) || 8,
                 //markerLat: parseFloat(params.get('markerLat')),
 				//markerLng: parseFloat(params.get('markerLng')),
-				markerLat: lat,
-                markerLng: lng,
+				markerLat: parseFloat(params.get('lat')),
+                markerLng: parseFloat(params.get('lng')),
 				beg: parseCompactTime(params.get('beg')) || defaultBeg,
         		end: parseCompactTime(params.get('end')) || null,
 				lim: parseInt(params.get('lim')) || 100
