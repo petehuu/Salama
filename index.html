@@ -98,19 +98,29 @@
             fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
         }
 
-        map.on('moveend', function() {
-            updateHash();
-
-			const zoom = map.getZoom();
-
-		    distanceTooltips.forEach(t => {
-		        if (zoom >= 9) {
-		            map.addLayer(t);
+        map.on('moveend', function () {
+		    updateHash();
+		    const zoom = map.getZoom();
+		
+		    distanceTooltips.forEach((tooltip, index) => {
+		        const radiusKm = [1, 10, radiusKm][index]; // sama järjestys kuin circles-taulukossa
+		
+		        // Näkyvyyslogiikka:
+		        // 1 km näkyy vain zoomilla ≥ 13
+		        // 10 km näkyy zoomilla ≥ 11
+		        // custom (esim. 50 km) näkyy zoomilla ≥ 9
+		        const minZoom =
+		            radiusKm <= 1 ? 13 :
+		            radiusKm <= 10 ? 11 :
+		            9;
+		
+		        if (zoom >= minZoom) {
+		            map.addLayer(tooltip);
 		        } else {
-		            map.removeLayer(t);
+		            map.removeLayer(tooltip);
 		        }
 		    });
-        });
+		});
 		
 		document.addEventListener('DOMContentLoaded', function() {
 			map.on('click', async function(event) {
