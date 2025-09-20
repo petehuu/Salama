@@ -426,52 +426,13 @@
 		    } else {
 		        console.warn("⚠️ Ei löytynyt salamahavaintoja viimeisten viikkojen ajalta.");
 		    }
+			return {
+			    total: found ? 1 : 0,
+			    nearby: found ? 1 : 0
+			};
+
 		}
-
 		
-		async function findLatestLightning(intervalMinutes, maxHoursBack, startTime) {
-		  const totalLoops = (maxHoursBack * 60) / intervalMinutes;
-		  const startUTC = new Date(startTime).toISOString();
-		
-		  for (let i = 0; i < totalLoops; i++) {
-		    const end = new Date(new Date(startUTC).getTime() - i * intervalMinutes * 60000);
-		    const start = new Date(end.getTime() - intervalMinutes * 60000);
-		
-		    const url = `https://opendata.fmi.fi/wfs?service=WFS&version=2.0.0&request=getFeature&storedquery_id=fmi::observations::lightning::simple&starttime=${start.toISOString()}&endtime=${end.toISOString()}`;
-		
-		    try {
-		      const response = await fetch(url);
-		      const xmlText = await response.text();
-		      const parser = new DOMParser();
-		      const xmlDoc = parser.parseFromString(xmlText, "application/xml");
-		      const positionsNode = xmlDoc.getElementsByTagName("gmlcov:positions")[0];
-		
-		      if (positionsNode && positionsNode.textContent.trim()) {
-		        const parts = positionsNode.textContent.trim().split(" ");
-		        const timestamps = parts.filter((_, i) => (i + 1) % 3 === 0); // joka kolmas: timestamp
-		        const lastTimestamp = parseInt(timestamps[timestamps.length - 1], 10);
-		        return new Date(lastTimestamp * 1000); // Unix → JS Date
-		      }
-		    } catch (err) {
-		      console.error("Virhe haussa:", err);
-		    }
-		  }
-		
-		  return null; // Ei löytynyt salamaa
-	}
-
-/*
-		const startTime = "2025-01-01T23:59:59Z";
-		findLatestLightning(10080, 744, startTime).then(result => {
-		  if (result) {
-		    console.log("⚡ Salama havaittu:", result.toLocaleString());
-		  } else {
-		    console.log("🌥️ Ei havaintoja annetulla aikavälillä.");
-		  }
-		});
-
- */
-
     </script>
 </body>
 </html>
