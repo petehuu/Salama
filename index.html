@@ -54,7 +54,8 @@
                 markerLng: parseFloat(params.get('lng')),
 				beg: parseCompactTime(params.get('beg')) || defaultBeg,
         		end: parseCompactTime(params.get('end')) || null,
-				lim: parseInt(params.get('lim')) || 100
+				lim: parseInt(params.get('lim')) || 100,
+				last: parseCompactTime(params.get('last')) || null
             };
         }
 
@@ -93,6 +94,11 @@
 			drawDistanceCircles(markerLat, markerLng)
             fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
 			fetchAndDrawLightning(markerLat, markerLng);
+			if (typeof last === 'object' && last !== null) {
+		        fetchLatestStrike(markerLat, markerLng);
+		    } else {
+		        fetchAndDrawLightning(markerLat, markerLng);
+		    }
         }
 
 
@@ -350,7 +356,78 @@
 				return { total: 0, nearby: 0 };
 		    };
 		}
-	
+
+		async function fetchLatestStrike(latClicked, lonClicked) {
+		    const bbox = getBBoxFromPoint(latClicked, lonClicked);
+		    const now = new Date();
+		    let end = new Date(now);
+		    let found = null;
+		    let maxTries = 10; // max 10 viikkoa taaksepäin
+		    let tries = 0;
+		
+		    while (!found && tries < maxTries) {
+		        const beg = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 päivää taaksepäin
+		        const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg.toISOString()}&endtime=${end.toISOString()}&bbox=${bbox}`;
+		        console.log(`🔎 Yritetään aikavälillä ${beg.toISOString()} – ${end.toISOString()}`);
+		
+		        try {
+		            const response = await fetch(url);
+		            const text = await response.text();
+		            const xmlDoc = new DOMParser().parseFromString(text, "application/xml");
+		            const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
+		
+		            if (positionsText) {
+		                const positions = positionsText.split(/\s+/);
+		                const salamat = [];
+		
+		                for (let i = 0; i < positions.length; i += 3) {
+		                    const lat = parseFloat(positions[i]);
+		                    const lon = parseFloat(positions[i + 1]);
+		                    const timestamp = parseInt(positions[i + 2]) * 1000;
+		                    const time = new Date(timestamp);
+		                    const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
+		
+		                    salamat.push({ lat, lon, time, distance });
+		                }
+		
+		                salamat.sort((a, b) => b.time - a.time); // uusimmat ensin
+		                found = salamat[0];
+		            }
+		        } catch (error) {
+		            console.error("❌ Virhe haussa:", error);
+		            break;
+		        }
+		
+		        // Siirry seuraavaan viikkoon taaksepäin
+		        end = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+		        tries++;
+		    }
+		
+		    if (found) {
+		        console.log(`⚡ Viimeisin salama löytyi: ${found.time.toLocaleString()} @ [${found.lat}, ${found.lon}]`);
+		
+		        const marker = L.circleMarker([found.lat, found.lon], {
+		            radius: 10,
+		            color: 'blue',
+		            fillColor: 'white',
+		            fillOpacity: 1
+		        }).addTo(map);
+		
+		        marker.bindTooltip(
+		            `⚡ Viimeisin salama<br>${found.time.toLocaleTimeString()}<br>📏 ${found.distance.toFixed(1)} km`,
+		            {
+		                permanent: true,
+		                direction: 'top',
+		                offset: [0, -10],
+		                className: 'lightning-tooltip'
+		            }
+		        ).openTooltip();
+		    } else {
+		        console.warn("⚠️ Ei löytynyt salamahavaintoja viimeisten viikkojen ajalta.");
+		    }
+		}
+
+		
 		async function findLatestLightning(intervalMinutes, maxHoursBack, startTime) {
 		  const totalLoops = (maxHoursBack * 60) / intervalMinutes;
 		  const startUTC = new Date(startTime).toISOString();
