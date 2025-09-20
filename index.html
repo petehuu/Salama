@@ -201,7 +201,6 @@
 		    return `${dd}.${mm}.${yy} ${hh}:${min}:${ss}`;
 		}
 
-		
 		async function fetchElevationAndUpdatePopup(lat, lng, marker) {
 			try {
 				const locationResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
@@ -503,7 +502,11 @@
 		                    const time = new Date(timestamp);
 		                    const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
 		
-		                    salamat.push({ lat, lon, time, distance });
+		                    //salamat.push({ lat, lon, time, distance });
+							const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
+							if (distance <= radiusKm) {
+							    salamat.push({ lat, lon, time, distance });
+							}
 		                }
 		            }
 		        } catch (error) {
