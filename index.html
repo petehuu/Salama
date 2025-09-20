@@ -178,13 +178,13 @@
 		        radius: 10000,
 		        color: 'green',
 		        fillOpacity: 0.1
-		    }).addTo(map).bindTooltip("10 km", { permanent: true, direction: 'bottom', offset: [0, 550] });
+		    }).addTo(map).bindTooltip("10 km", { permanent: true, direction: 'bottom', offset: [0, 520] });
 		
 		    const circleCustom = L.circle(center, {
 		        radius: radiusKm * 1000,
 		        color: 'red',
 		        fillOpacity: 0.05
-	    	}).addTo(map).bindTooltip(`${radiusKm} km`, { permanent: true, direction: 'bottom', offset: [0, radiusKm * 550] });
+	    	}).addTo(map).bindTooltip(`${radiusKm} km`, { permanent: true, direction: 'bottom', offset: [0, radiusKm * 55] });
 	
 	    	distanceCircles.push(circle1, circle10, circleCustom);
 		}
