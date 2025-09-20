@@ -229,7 +229,8 @@
 				if (last) {
 					console.log('Haetaan viimeisimmät salamat');
 			        //lightningStats = await fetchLatestStrike(lat, lng);
-					lightningStats = await fetchLatestStrikes(lat, lng);
+					lightningStats = await fetchLatestStrikes(lat, lng, lim);
+
 			    } else {
 			        lightningStats = await fetchAndDrawLightning(lat, lng);
 			    }
