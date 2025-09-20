@@ -55,15 +55,14 @@
 				beg: parseCompactTime(params.get('beg')) || defaultBeg,
         		end: parseCompactTime(params.get('end')) || null,
 				lim: parseInt(params.get('lim')) || 100,
-				last: params.has('last') 
+				last: params.has('last'),
+				radiusKm: parseFloat(params.get('rad')) || 100 // oletus 100 km
             };
         }
 
-        //const { lat, lng, zoom, markerLat, markerLng, last } = getHashParams();
-		//let { beg, end, lim } = getHashParams();
 		const params = getHashParams();
 		const { lat, lng, zoom, markerLat, markerLng, last } = params;	
-		let { beg, end, lim } = params;
+		let { beg, end, lim, radiusKm } = params;
 
         let map = L.map('map').setView([lat, lng], zoom);
 
@@ -94,7 +93,7 @@
         let marker;
         if (markerLat && markerLng) {
             marker = L.marker([markerLat, markerLng]).addTo(map);
-			drawDistanceCircles(markerLat, markerLng)
+			drawDistanceCircles(markerLat, markerLng, radiusKm)
             fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
         }
 
@@ -154,6 +153,10 @@
 				    hash += `&last`;
 				}
 
+				if (typeof radiusKm === 'number') {
+		            hash += `&rad=${radiusKm}`;
+		        }
+
             }
             window.location.hash = hash;
         }
@@ -177,7 +180,13 @@
 		        fillOpacity: 0.1
 		    }).addTo(map).bindTooltip("10 km", { permanent: true, direction: 'center' });
 		
-		    distanceCircles.push(circle1, circle10);
+		    const circleCustom = L.circle(center, {
+		        radius: radiusKm * 1000,
+		        color: 'red',
+		        fillOpacity: 0.05
+	    	}).addTo(map).bindTooltip(`${radiusKm} km`, { permanent: true, direction: 'center' });
+	
+	    	distanceCircles.push(circle1, circle10, circleCustom);
 		}
 
 		function formatShortDateTime(date) {
@@ -279,7 +288,7 @@
 		}
 
 		async function fetchAndDrawLightning(latClicked, lonClicked) {
-			const bbox = getBBoxFromPoint(latClicked, lonClicked);
+			const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
 			console.log(`bbox : ${bbox}`);
 			const { markerLat, markerLng, beg, end, lim } = getHashParams();
 			//const start = "2025-09-17T00:00:00Z";
@@ -381,7 +390,7 @@
 		}
 
 		async function fetchLatestStrike(latClicked, lonClicked) {
-		    const bbox = getBBoxFromPoint(latClicked, lonClicked);
+		    const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
 		    const now = new Date();
 		    let end = new Date(now);
 		    let found = null;
@@ -465,7 +474,7 @@
 		}
 
 		async function fetchLatestStrikes(latClicked, lonClicked, lim = 100) {
-		    const bbox = getBBoxFromPoint(latClicked, lonClicked);
+		    const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
 		    const now = new Date();
 		    let end = new Date(now);
 		    const salamat = [];
