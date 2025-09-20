@@ -64,6 +64,7 @@
 		const params = getHashParams();
 		const { lat, lng, zoom, markerLat, markerLng, last } = params;	
 		let { beg, end, lim } = params;
+		console.log('lim:', lim);
 
         let map = L.map('map').setView([lat, lng], zoom);
 
