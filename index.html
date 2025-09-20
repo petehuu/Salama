@@ -189,7 +189,8 @@
 		            direction: 'bottom',
 		            className: 'circle-label'
 		        })
-		        .setContent(`${radiusKm} km`)
+		        //.setContent(`${radiusKm} km`)
+				.setContent(`<span style="color: ${color}; font-weight: bold;">${radiusKm} km</span>`)	
 		        .setLatLng(labelLatLng)
 		        .addTo(map);
 		
