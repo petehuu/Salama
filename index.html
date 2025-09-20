@@ -467,6 +467,7 @@
 		    const salamat = [];
 		    let maxTries = 10;
 		    let tries = 0;
+			let piirrettavat = [];
 		
 		    while (salamat.length < lim && tries < maxTries) {
 		        const beg = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -503,7 +504,7 @@
 		
 		    if (salamat.length > 0) {
 		        salamat.sort((a, b) => b.time - a.time); // uusimmat ensin
-		        const piirrettavat = salamat.slice(0, lim);
+		        piirrettavat = salamat.slice(0, lim);
 				
 				// Piirrä kaikki paitsi viimeisin
 				for (let i = piirrettavat.length - 1; i > 0; i--) {
