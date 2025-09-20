@@ -325,7 +325,10 @@
 		            const time = new Date(timestamp);
 		            const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000; // km
 		
-		            salamat.push({ lat, lon, time, distance });
+		            //salamat.push({ lat, lon, time, distance });
+					if (distance <= radiusKm) {
+						salamat.push({ lat, lon, time, distance });
+					}
 				}
 
 				console.log(`🔍 Salamahavaintoja haettu: ${salamat.length} kpl`);
@@ -418,7 +421,10 @@
 		                    const time = new Date(timestamp);
 		                    const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
 		
-		                    salamat.push({ lat, lon, time, distance });
+		                    //salamat.push({ lat, lon, time, distance });
+							if (distance <= radiusKm) {
+							    salamat.push({ lat, lon, time, distance });
+							}
 		                }
 		
 		                salamat.sort((a, b) => b.time - a.time); // uusimmat ensin
