@@ -48,8 +48,10 @@
                 lat: parseFloat(params.get('lat')) || 60.1695,
                 lng: parseFloat(params.get('lng')) || 24.9354,
                 zoom: parseInt(params.get('zoom')) || 8,
-                markerLat: parseFloat(params.get('markerLat')),
-                markerLng: parseFloat(params.get('markerLng')),
+                //markerLat: parseFloat(params.get('markerLat')),
+				//markerLng: parseFloat(params.get('markerLng')),
+				markerLat: lat,
+                markerLng: lng,
 				beg: parseCompactTime(params.get('beg')) || defaultBeg,
         		end: parseCompactTime(params.get('end')) || null,
 				lim: parseInt(params.get('lim')) || 100
@@ -129,7 +131,8 @@
             let hash = `lat=${center.lat}&lng=${center.lng}&zoom=${zoomLevel}`;
             if (marker) {
                 const markerPos = marker.getLatLng();
-                hash += `&markerLat=${markerPos.lat}&markerLng=${markerPos.lng}`;
+                //hash += `&markerLat=${markerPos.lat}&markerLng=${markerPos.lng}`;
+				hash = `lat=${MarkerPos.lat}&lng=${markerPos.lng}&zoom=${zoomLevel}`;
 				
 				if (typeof beg !== 'undefined' && beg !== null) {
 					console.log('beg:', beg);
