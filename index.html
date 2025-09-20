@@ -98,29 +98,20 @@
             fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
         }
 
-        map.on('moveend', function () {
+        map.on('moveend', function() {
 		    updateHash();
+		
 		    const zoom = map.getZoom();
 		
-		    distanceTooltips.forEach((tooltip, index) => {
-		        const radiusKm = [1, 10, radiusKm][index]; // sama järjestys kuin circles-taulukossa
-		
-		        // Näkyvyyslogiikka:
-		        // 1 km näkyy vain zoomilla ≥ 13
-		        // 10 km näkyy zoomilla ≥ 11
-		        // custom (esim. 50 km) näkyy zoomilla ≥ 9
-		        const minZoom =
-		            radiusKm <= 1 ? 13 :
-		            radiusKm <= 10 ? 11 :
-		            9;
-		
-		        if (zoom >= minZoom) {
-		            map.addLayer(tooltip);
+		    distanceTooltips.forEach(t => {
+		        if (zoom >= 9) {
+		            map.addLayer(t);
 		        } else {
-		            map.removeLayer(tooltip);
+		            map.removeLayer(t);
 		        }
 		    });
 		});
+
 		
 		document.addEventListener('DOMContentLoaded', function() {
 			map.on('click', async function(event) {
@@ -194,8 +185,10 @@
 		        { radiusKm: 10, color: 'green' },
 		        { radiusKm: radiusKm, color: 'red' }
 		    ];
-		
-		    circles.forEach(({ radiusKm, color }) => {
+
+			const directions = ['bottom', 'left', 'right'];
+			
+		    circles.forEach(({ radiusKm, color }, index) => {
 		        const radiusMeters = radiusKm * 1000;
 		
 		        const circle = L.circle(center, {
@@ -205,10 +198,12 @@
 		        }).addTo(map);
 		
 		        const labelLatLng = pointOnCircle(center, radiusMeters, 270);
-		
+
+				const direction = directions[index];
+				
 		        const tooltip = L.tooltip({
 		            permanent: true,
-		            direction: 'bottom',
+		            direction: direction,
 		            className: 'circle-label'
 		        })
 		        .setContent(`<span style="color: ${color}; font-weight: bold;">${radiusKm} km</span>`)
