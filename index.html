@@ -369,7 +369,7 @@
 		    while (!found && tries < maxTries) {
 		        const beg = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 päivää taaksepäin
 		        const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg.toISOString()}&endtime=${end.toISOString()}&bbox=${bbox}`;
-		        console.log(`🔎 Yritetään aikavälillä ${beg.toISOString()} – ${end.toISOString()}`);
+		        console.log(`🔎 Yritetään aikavälillä ${beg.toLocaleString()} – ${end.toLocaleString()}`);
 		
 		        try {
 		            const response = await fetch(url);
