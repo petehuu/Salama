@@ -89,6 +89,7 @@
 		const lineLength = 50000 / scale; // Viivan pituus pikseleinä
 		const lineLayerGroup = L.layerGroup().addTo(map);
 		let distanceCircles = [];
+		let distanceTooltips = [];
 
         let marker;
         if (markerLat && markerLng) {
@@ -99,6 +100,16 @@
 
         map.on('moveend', function() {
             updateHash();
+
+			const zoom = map.getZoom();
+
+		    distanceTooltips.forEach(t => {
+		        if (zoom >= 10) {
+		            map.addLayer(t);
+		        } else {
+		            map.removeLayer(t);
+		        }
+		    });
         });
 		
 		document.addEventListener('DOMContentLoaded', function() {
@@ -132,7 +143,6 @@
             let hash = `lat=${center.lat}&lng=${center.lng}&zoom=${zoomLevel}`;
             if (marker) {
                 const markerPos = marker.getLatLng();
-                //hash += `&markerLat=${markerPos.lat}&markerLng=${markerPos.lng}`;
 				hash = `lat=${markerPos.lat}&lng=${markerPos.lng}&zoom=${zoomLevel}`;
 				
 				if (typeof beg !== 'undefined' && beg !== null) {
@@ -163,7 +173,9 @@
 
 		function drawDistanceCircles(lat, lng) {
 		    distanceCircles.forEach(c => map.removeLayer(c));
+		    distanceTooltips.forEach(t => map.removeLayer(t));
 		    distanceCircles = [];
+		    distanceTooltips = [];
 		
 		    const center = [lat, lng];
 		
@@ -182,21 +194,22 @@
 		            fillOpacity: 0.1
 		        }).addTo(map);
 		
-		        const labelLatLng = pointOnCircle(center, radiusMeters, 270); // alareuna
+		        const labelLatLng = pointOnCircle(center, radiusMeters, 270);
 		
 		        const tooltip = L.tooltip({
 		            permanent: true,
 		            direction: 'bottom',
 		            className: 'circle-label'
 		        })
-		        //.setContent(`${radiusKm} km`)
-				.setContent(`<span style="color: ${color}; font-weight: bold;">${radiusKm} km</span>`)	
+		        .setContent(`<span style="color: ${color}; font-weight: bold;">${radiusKm} km</span>`)
 		        .setLatLng(labelLatLng)
 		        .addTo(map);
 		
-		        distanceCircles.push(circle, tooltip);
+		        distanceCircles.push(circle);
+		        distanceTooltips.push(tooltip);
 		    });
 		}
+
 
 		function pointOnCircle(center, radiusMeters, angleDegrees) {
 		    const angleRadians = angleDegrees * Math.PI / 180;
