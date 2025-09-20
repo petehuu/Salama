@@ -529,13 +529,16 @@
 				
 				// Piirrä viimeisin salama viimeisenä ja korostettuna
 				const latest = piirrettavat[0];
+				map.createPane('top-marker');
+				map.getPane('top-marker').style.zIndex = 650;
+				
 				const latestMarker = L.circleMarker([latest.lat, latest.lon], {
+				    pane: 'top-marker',
 				    radius: 12,
 				    color: 'red',
 				    fillColor: 'yellow',
 				    fillOpacity: 1
 				}).addTo(map);
-				latestMarker.bringToFront();				
 				
 				latestMarker.bindTooltip(
 				    `⚡ Viimeisin salama<br>${formatShortDateTime(latest.time)}<br>📏 ${latest.distance.toFixed(1)} km`,
