@@ -55,7 +55,7 @@
 				beg: parseCompactTime(params.get('beg')) || defaultBeg,
         		end: parseCompactTime(params.get('end')) || null,
 				lim: parseInt(params.get('lim')) || 100,
-				last: parseCompactTime(params.get('last')) || null
+				last: params.get('last') || null
             };
         }
 
