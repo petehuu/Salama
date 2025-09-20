@@ -535,6 +535,7 @@
 				    fillColor: 'yellow',
 				    fillOpacity: 1
 				}).addTo(map);
+				latestMarker.bringToFront();				
 				
 				latestMarker.bindTooltip(
 				    `⚡ Viimeisin salama<br>${formatShortDateTime(latest.time)}<br>📏 ${latest.distance.toFixed(1)} km`,
@@ -545,8 +546,6 @@
 				        className: 'lightning-tooltip'
 				    }
 				).openTooltip();
-				latestMarker.bringToFront();
-				latestMarker.setZIndexOffset(1000);
 
 		        console.log(`⚡ Piirrettiin ${piirrettavat.length} salamaa`);
 		    } else {
