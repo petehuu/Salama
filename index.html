@@ -172,19 +172,19 @@
 		        radius: 1000,
 		        color: 'blue',
 		        fillOpacity: 0.1
-		    }).addTo(map).bindTooltip("1 km", { permanent: true, direction: 'top' });
+		    }).addTo(map).bindTooltip("1 km", { permanent: true, direction: 'top', offset: [0, -100]});
 		
 		    const circle10 = L.circle(center, {
 		        radius: 10000,
 		        color: 'green',
 		        fillOpacity: 0.1
-		    }).addTo(map).bindTooltip("10 km", { permanent: true, direction: 'bottom' });
+		    }).addTo(map).bindTooltip("10 km", { permanent: true, direction: 'top', offset: [0, -100] });
 		
 		    const circleCustom = L.circle(center, {
 		        radius: radiusKm * 1000,
 		        color: 'red',
 		        fillOpacity: 0.05
-	    	}).addTo(map).bindTooltip(`${radiusKm} km`, { permanent: true, direction: 'left' });
+	    	}).addTo(map).bindTooltip(`${radiusKm} km`, { permanent: true, direction: 'top', offset: [0, -100] });
 	
 	    	distanceCircles.push(circle1, circle10, circleCustom);
 		}
