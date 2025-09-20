@@ -222,11 +222,11 @@
 				const northUpper = (Number(north) + 4).toString().padStart(7, '0').slice(-7);
 
 				const elevation = await fetchElevation(eastLower, eastUpper, northLower, northUpper);
-				//const lightningStats = await fetchAndDrawLightning(lat, lng);
 				let lightningStats = { total: 0, nearby: 0 };
 				if (last) {
 					console.log('Haetaan viimeisimmät salamat');
-			        lightningStats = await fetchLatestStrike(lat, lng);
+			        //lightningStats = await fetchLatestStrike(lat, lng);
+					lightningStats = await fetchLatestStrikes(lat, lng);
 			    } else {
 			        lightningStats = await fetchAndDrawLightning(lat, lng);
 			    }
@@ -459,6 +459,82 @@
 			};
 
 		}
+
+		async function fetchLatestStrikes(latClicked, lonClicked, lim = 100) {
+		    const bbox = getBBoxFromPoint(latClicked, lonClicked);
+		    const now = new Date();
+		    let end = new Date(now);
+		    const salamat = [];
+		    let maxTries = 10;
+		    let tries = 0;
+		
+		    while (salamat.length < lim && tries < maxTries) {
+		        const beg = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+		        const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg.toISOString()}&endtime=${end.toISOString()}&bbox=${bbox}`;
+		        console.log(`🔎 Yritetään aikavälillä ${formatShortDateTime(beg)} – ${formatShortDateTime(end)}`);
+		
+		        try {
+		            const response = await fetch(url);
+		            const text = await response.text();
+		            const xmlDoc = new DOMParser().parseFromString(text, "application/xml");
+		            const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
+		
+		            if (positionsText) {
+		                const positions = positionsText.split(/\s+/);
+		
+		                for (let i = 0; i < positions.length; i += 3) {
+		                    const lat = parseFloat(positions[i]);
+		                    const lon = parseFloat(positions[i + 1]);
+		                    const timestamp = parseInt(positions[i + 2]) * 1000;
+		                    const time = new Date(timestamp);
+		                    const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
+		
+		                    salamat.push({ lat, lon, time, distance });
+		                }
+		            }
+		        } catch (error) {
+		            console.error("❌ Virhe haussa:", error);
+		            break;
+		        }
+		
+		        end = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+		        tries++;
+		    }
+		
+		    if (salamat.length > 0) {
+		        salamat.sort((a, b) => b.time - a.time); // uusimmat ensin
+		        const piirrettavat = salamat.slice(0, lim);
+		
+		        piirrettavat.forEach(s => {
+		            const marker = L.circleMarker([s.lat, s.lon], {
+		                radius: 10,
+		                color: 'blue',
+		                fillColor: 'white',
+		                fillOpacity: 1
+		            }).addTo(map);
+		
+		            marker.bindTooltip(
+		                `⚡ ${formatShortDateTime(s.time)}<br>📏 ${s.distance.toFixed(1)} km`,
+		                {
+		                    permanent: true,
+		                    direction: 'top',
+		                    offset: [0, -10],
+		                    className: 'lightning-tooltip'
+		                }
+		            ).openTooltip();
+		        });
+		
+		        console.log(`⚡ Piirrettiin ${piirrettavat.length} salamaa`);
+		    } else {
+		        console.warn("⚠️ Ei löytynyt salamahavaintoja viimeisten viikkojen ajalta.");
+		    }
+		
+		    return {
+		        total: salamat.length,
+		        nearby: salamat.length
+		    };
+		}
+		
 		
     </script>
 </body>
