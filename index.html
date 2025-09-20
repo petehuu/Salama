@@ -501,9 +501,7 @@
 		                    const timestamp = parseInt(positions[i + 2]) * 1000;
 		                    const time = new Date(timestamp);
 		                    const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
-		
 		                    //salamat.push({ lat, lon, time, distance });
-							const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
 							if (distance <= radiusKm) {
 							    salamat.push({ lat, lon, time, distance });
 							}
