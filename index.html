@@ -187,6 +187,7 @@
 		    ];
 
 			const directions = ['bottom', 'left', 'right'];
+			const angles = [270, 180, 0];
 			
 		    circles.forEach(({ radiusKm, color }, index) => {
 		        const radiusMeters = radiusKm * 1000;
@@ -196,11 +197,11 @@
 		            color: color,
 		            fillOpacity: 0.1
 		        }).addTo(map);
-		
-		        const labelLatLng = pointOnCircle(center, radiusMeters, 270);
+
+				const angle = angles[index];
+		        const labelLatLng = pointOnCircle(center, radiusMeters, angle);
 
 				const direction = directions[index];
-				
 		        const tooltip = L.tooltip({
 		            permanent: true,
 		            direction: direction,
