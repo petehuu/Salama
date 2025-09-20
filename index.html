@@ -93,14 +93,7 @@
             marker = L.marker([markerLat, markerLng]).addTo(map);
 			drawDistanceCircles(markerLat, markerLng)
             fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
-			if (last) {
-				console.log('Haetaan viimeisimmät salamat');
-		        fetchLatestStrike(markerLat, markerLng);
-		    } else {
-		        fetchAndDrawLightning(markerLat, markerLng);
-		    }
         }
-
 
         map.on('moveend', function() {
             updateHash();
@@ -211,7 +204,15 @@
 				const northUpper = (Number(north) + 4).toString().padStart(7, '0').slice(-7);
 
 				const elevation = await fetchElevation(eastLower, eastUpper, northLower, northUpper);
-				const lightningStats = await fetchAndDrawLightning(lat, lng);
+				//const lightningStats = await fetchAndDrawLightning(lat, lng);
+				let lightningStats = { total: 0, nearby: 0 };
+				if (last) {
+					console.log('Haetaan viimeisimmät salamat');
+			        lightningStats = await fetchLatestStrike(lat, lng);
+			    } else {
+			        lightningStats = await fetchAndDrawLightning(lat, lng);
+			    }
+
 	
                 const popupContent =   `Location: ${locationName}<br>
                                     	Lat: ${lat.toFixed(5)}, Lon: ${lng.toFixed(5)}<br>
