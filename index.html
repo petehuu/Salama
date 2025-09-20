@@ -336,7 +336,7 @@
 				    }).addTo(map);
 				
 				    marker.bindTooltip(
-				        `⚡ ${s.time.toLocaleTimeString()}<br>📏 ${s.distance.toFixed(1)} km`,
+				        `⚡ ${s.time.toLocaleTimeString('fi-FI', { hour12: false })}<br>📏 ${s.distance.toFixed(1)} km`,
 				        {
 				            permanent: true,
 				            direction: 'top',
@@ -349,7 +349,7 @@
 		        //console.log(`✅ Salamahavaintoja: ${salamat.length} kpl`);
 				console.log(`✅ Näytetään ${valitut.length} lähintä salamaa:`);
 		        valitut.forEach((s, i) => {
-		            console.log(`${i + 1}. ${s.time.toLocaleString()} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
+		            console.log(`${i + 1}. ${s.time.toLocaleTimeString('fi-FI', { hour12: false })} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
 		        });
 				return {
 				    total: salamat.length,
