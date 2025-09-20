@@ -147,9 +147,10 @@
 		            hash += `&lim=${lim}`;
 		        }
 
-				if (typeof last !== 'undefined' && last !== null) {
-		            hash += `&last`;
-		        }
+				if (Boolean(last)) {
+				    hash += `&last`;
+				}
+
             }
             window.location.hash = hash;
         }
