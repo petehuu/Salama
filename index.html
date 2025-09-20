@@ -247,7 +247,7 @@
                 const popupContent =   `Location: ${locationName}<br>
                                     	Lat: ${lat.toFixed(5)}, Lon: ${lng.toFixed(5)}<br>
                                        	Elevation: ${elevation} meters<br>
-			                           	<b>Salamahavaintoja 100 km säteellä:</b> ${lightningStats.total}<br>
+			                           	<b>Salamahavaintoja ${radiusKm} km säteellä:</b> ${lightningStats.total}<br>
 			                           	<b>Näytetään lähimmät (${lim} kpl):</b> ${lightningStats.nearby}
 									   `;
 				
@@ -524,7 +524,6 @@
 		
 		    if (salamat.length > 0) {
 		        salamat.sort((a, b) => b.time - a.time); // uusimmat ensin
-				console.log('piirrettavat lim:', lim);
 		        piirrettavat = salamat.slice(0, lim);
 				
 				// Piirrä kaikki paitsi viimeisin
