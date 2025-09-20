@@ -132,7 +132,7 @@
             if (marker) {
                 const markerPos = marker.getLatLng();
                 //hash += `&markerLat=${markerPos.lat}&markerLng=${markerPos.lng}`;
-				hash = `lat=${MarkerPos.lat}&lng=${markerPos.lng}&zoom=${zoomLevel}`;
+				hash = `lat=${markerPos.lat}&lng=${markerPos.lng}&zoom=${zoomLevel}`;
 				
 				if (typeof beg !== 'undefined' && beg !== null) {
 					console.log('beg:', beg);
