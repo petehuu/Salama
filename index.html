@@ -64,7 +64,6 @@
 		const params = getHashParams();
 		const { lat, lng, zoom, markerLat, markerLng, last } = params;	
 		let { beg, end, lim } = params;
-		console.log('lim:', lim);
 
         let map = L.map('map').setView([lat, lng], zoom);
 
@@ -508,6 +507,7 @@
 		
 		    if (salamat.length > 0) {
 		        salamat.sort((a, b) => b.time - a.time); // uusimmat ensin
+				console.log('piirrettavat lim:', lim);
 		        piirrettavat = salamat.slice(0, lim);
 				
 				// Piirrä kaikki paitsi viimeisin
