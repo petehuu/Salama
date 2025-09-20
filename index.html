@@ -59,7 +59,7 @@
             };
         }
 
-        const { lat, lng, zoom, markerLat, markerLng } = getHashParams();
+        const { lat, lng, zoom, markerLat, markerLng, last } = getHashParams();
 		let { beg, end, lim } = getHashParams();
 
         let map = L.map('map').setView([lat, lng], zoom);
