@@ -337,7 +337,7 @@
 				    }).addTo(map);
 				
 				    marker.bindTooltip(
-				        `⚡ ${s.time.toLocaleTimeString('fi-FI', { hour12: false })}<br>📏 ${s.distance.toFixed(1)} km`,
+				        `⚡ ${s.time.toLocaleString('fi-FI', { hour12: false })}<br>📏 ${s.distance.toFixed(1)} km`,
 				        {
 				            permanent: true,
 				            direction: 'top',
@@ -350,7 +350,7 @@
 		        //console.log(`✅ Salamahavaintoja: ${salamat.length} kpl`);
 				console.log(`✅ Näytetään ${valitut.length} lähintä salamaa:`);
 		        valitut.forEach((s, i) => {
-		            console.log(`${i + 1}. ${s.time.toLocaleTimeString('fi-FI', { hour12: false })} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
+		            console.log(`${i + 1}. ${s.time.toLocaleString('fi-FI', { hour12: false })} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
 		        });
 				return {
 				    total: salamat.length,
@@ -410,7 +410,7 @@
 		    }
 		
 		    if (found) {
-		        console.log(`⚡ Viimeisin salama löytyi: ${found.time.toLocaleTimeString('fi-FI', { hour12: false })} @ [${found.lat}, ${found.lon}]`);
+		        console.log(`⚡ Viimeisin salama löytyi: ${found.time.toLocaleString('fi-FI', { hour12: false })} @ [${found.lat}, ${found.lon}]`);
 		
 		        const marker = L.circleMarker([found.lat, found.lon], {
 		            radius: 10,
@@ -420,7 +420,7 @@
 		        }).addTo(map);
 		
 		        marker.bindTooltip(
-		            `⚡ Viimeisin salama<br>${found.time.toLocaleTimeString('fi-FI', { hour12: false })}<br>📏 ${found.distance.toFixed(1)} km`,
+		            `⚡ Viimeisin salama<br>${found.time.toLocaleString('fi-FI', { hour12: false })}<br>📏 ${found.distance.toFixed(1)} km`,
 		            {
 		                permanent: true,
 		                direction: 'top',
