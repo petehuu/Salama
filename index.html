@@ -427,6 +427,15 @@
 		                className: 'lightning-tooltip'
 		            }
 		        ).openTooltip();
+				const distanceKm = map.distance([latClicked, lonClicked], [found.lat, found.lon]) / 1000;
+
+			    let targetZoom = map.getZoom(); // oletus: ei muutosta
+			    if (distanceKm > 100) targetZoom = 7;
+			    else if (distanceKm > 50) targetZoom = 8;
+			    else if (distanceKm > 25) targetZoom = 9;
+			    else if (distanceKm > 10) targetZoom = 10;
+			
+			    map.setView(map.getCenter(), targetZoom); // säilyttää keskipisteen
 		    } else {
 		        console.warn("⚠️ Ei löytynyt salamahavaintoja viimeisten viikkojen ajalta.");
 		    }
