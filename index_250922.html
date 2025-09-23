@@ -1,1 +1,628 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salamat</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/suncalc/suncalc.js"></script>
+    <!--    <script src="./geometryutil.js"  > </script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.6.2/proj4.js"></script>
+    <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/src/leaflet.geometryutil.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        #map {
+            width: 100%;
+            height: 80%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Salamat</h1>
+    <div id="map"></div>
+    <script>
+		function parseCompactTime(str) {
+		    if (!str || str.length !== 10) return null;
+		    const yy = parseInt(str.slice(0, 2), 10) + 2000;
+		    const MM = parseInt(str.slice(2, 4), 10) - 1;
+		    const dd = parseInt(str.slice(4, 6), 10);
+		    const hh = parseInt(str.slice(6, 8), 10);
+		    const mm = parseInt(str.slice(8, 10), 10);
+		    return new Date(yy, MM, dd, hh, mm).toISOString();
+		}
+        function getHashParams() {
+            const hash = window.location.hash.substring(1);
+            const params = new URLSearchParams(hash);
+			const now = new Date();
+    		const defaultBeg = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+            return {
+                lat: parseFloat(params.get('lat')) || 60.1695,
+                lng: parseFloat(params.get('lng')) || 24.9354,
+                zoom: parseInt(params.get('zoom')) || 8,
+                //markerLat: parseFloat(params.get('markerLat')),
+				//markerLng: parseFloat(params.get('markerLng')),
+				markerLat: parseFloat(params.get('lat')),
+                markerLng: parseFloat(params.get('lng')),
+				beg: parseCompactTime(params.get('beg')) || defaultBeg,
+        		end: parseCompactTime(params.get('end')) || null,
+				lim: parseInt(params.get('lim')) || 100,
+				last: params.has('last'),
+				radiusKm: parseFloat(params.get('rad')) || 100 // oletus 100 km
+            };
+        }
+
+		const params = getHashParams();
+		const { lat, lng, zoom, markerLat, markerLng, last } = params;	
+		let { beg, end, lim, radiusKm } = params;
+
+        let map = L.map('map').setView([lat, lng], zoom);
+
+        // Tavallinen karttapohja (OpenStreetMap)
+        const baseMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map); // Lisää aloituspohjana
+
+        // Satelliittikartta (Esri World Imagery)
+        const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri & NASA'
+        });
+
+        // Lisää kerrosten hallinta (karttapohjan vaihto)
+        const baseMaps = {
+            "Kartta": baseMap,
+            "Satelliitti": satelliteMap
+        };
+
+        L.control.layers(baseMaps).addTo(map);
+
+		const zoomLevel = map.getZoom();
+		const scale = map.getScaleZoom(zoomLevel);
+		const lineLength = 50000 / scale; // Viivan pituus pikseleinä
+		const lineLayerGroup = L.layerGroup().addTo(map);
+		let distanceCircles = [];
+		let distanceTooltips = [];
+
+        let marker;
+        if (markerLat && markerLng) {
+            marker = L.marker([markerLat, markerLng]).addTo(map);
+			drawDistanceCircles(markerLat, markerLng, radiusKm)
+            fetchElevationAndUpdatePopup(markerLat, markerLng, marker);
+        }
+
+        map.on('moveend', function() {
+		    updateHash();
+		
+		    const zoom = map.getZoom();
+		
+		    distanceTooltips.forEach(t => {
+		        if (zoom >= 9) {
+		            map.addLayer(t);
+		        } else {
+		            map.removeLayer(t);
+		        }
+		    });
+		});
+
+		
+		document.addEventListener('DOMContentLoaded', function() {
+			map.on('click', async function(event) {
+				const latitude = event.latlng.lat;
+				const longitude = event.latlng.lng;
+							
+				if (marker) {
+					map.removeLayer(marker);
+				}
+				marker = L.marker([latitude, longitude]).addTo(map);
+				marker.bindPopup('Fetching elevation data...').openPopup();
+				drawDistanceCircles(latitude, longitude);
+				await fetchElevationAndUpdatePopup(latitude, longitude, marker);
+				await fetchAndDrawLightning(latitude, longitude);
+				updateHash();
+			});
+		});	
+		function formatCompactTime(isoString) {
+			const date = new Date(isoString);
+		    const yy = String(date.getFullYear()).slice(2); // esim. 2025 → "25"
+		    const MM = String(date.getMonth() + 1).padStart(2, '0'); // kuukausi 0–11 → 01–12
+		    const dd = String(date.getDate()).padStart(2, '0');
+		    const hh = String(date.getHours()).padStart(2, '0');
+		    const mm = String(date.getMinutes()).padStart(2, '0');
+		    return `${yy}${MM}${dd}${hh}${mm}`;
+		}
+        function updateHash() {
+            const center = map.getCenter();
+            const zoomLevel = map.getZoom();
+            let hash = `lat=${center.lat}&lng=${center.lng}&zoom=${zoomLevel}`;
+            if (marker) {
+                const markerPos = marker.getLatLng();
+				hash = `lat=${markerPos.lat}&lng=${markerPos.lng}&zoom=${zoomLevel}`;
+				
+				if (typeof beg !== 'undefined' && beg !== null) {
+					console.log('beg:', formatCompactTime(beg));
+		            hash += `&beg=${formatCompactTime(beg)}`;
+		        }
+		
+		        if (end instanceof Date) {
+					console.log('end:', formatCompactTime(end));
+				    hash += `&end=${formatCompactTime(end)}`;
+				}
+		
+		        if (typeof lim === 'number') {
+		            hash += `&lim=${lim}`;
+		        }
+
+				if (Boolean(last)) {
+				    hash += `&last`;
+				}
+
+				if (typeof radiusKm === 'number') {
+		            hash += `&rad=${radiusKm}`;
+		        }
+
+            }
+            window.location.hash = hash;
+        }
+
+		function drawDistanceCircles(lat, lng) {
+		    distanceCircles.forEach(c => map.removeLayer(c));
+		    distanceTooltips.forEach(t => map.removeLayer(t));
+		    distanceCircles = [];
+		    distanceTooltips = [];
+		
+		    const center = [lat, lng];
+		
+		    const circles = [
+		        { radiusKm: 1, color: 'blue' },
+		        { radiusKm: 10, color: 'green' },
+		        { radiusKm: radiusKm, color: 'red' }
+		    ];
+
+			const directions = ['bottom', 'left', 'right'];
+			const angles = [270, 180, 0];
+			
+		    circles.forEach(({ radiusKm, color }, index) => {
+		        const radiusMeters = radiusKm * 1000;
+		
+		        const circle = L.circle(center, {
+		            radius: radiusMeters,
+		            color: color,
+		            fillOpacity: 0.1
+		        }).addTo(map);
+
+				const angle = angles[index];
+		        const labelLatLng = pointOnCircle(center, radiusMeters, angle);
+
+				const direction = directions[index];
+		        const tooltip = L.tooltip({
+		            permanent: true,
+		            direction: direction,
+		            className: 'circle-label'
+		        })
+		        .setContent(`<span style="color: ${color}; font-weight: bold;">${radiusKm} km</span>`)
+		        .setLatLng(labelLatLng)
+		        .addTo(map);
+		
+		        distanceCircles.push(circle);
+		        distanceTooltips.push(tooltip);
+		    });
+		}
+
+
+		function pointOnCircle(center, radiusMeters, angleDegrees) {
+		    const angleRadians = angleDegrees * Math.PI / 180;
+		    const dx = radiusMeters * Math.cos(angleRadians);
+		    const dy = radiusMeters * Math.sin(angleRadians);
+		
+		    const offsetLat = dy / 111320; // leveysasteet/metri
+		    const offsetLng = dx / (40075000 * Math.cos(center[0] * Math.PI / 180) / 360); // pituusasteet/metri
+		
+		    return [center[0] + offsetLat, center[1] + offsetLng];
+		}
+
+		function formatShortDateTime(date) {
+		    const dd = String(date.getDate()).padStart(2, '0');
+		    const mm = String(date.getMonth() + 1).padStart(2, '0');
+		    const yy = String(date.getFullYear()).slice(-2);
+		
+		    const hh = String(date.getHours()).padStart(2, '0');
+		    const min = String(date.getMinutes()).padStart(2, '0');
+		    const ss = String(date.getSeconds()).padStart(2, '0');
+		
+		    return `${dd}.${mm}.${yy} ${hh}:${min}:${ss}`;
+		}
+
+		async function fetchElevationAndUpdatePopup(lat, lng, marker) {
+			try {
+				const locationResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+				if (!locationResponse.ok) {
+					throw new Error(`Location API request failed: ${locationResponse.statusText}`);
+				}
+				const locationData = await locationResponse.json();
+				if (!locationData.display_name) {
+					throw new Error('Location data is missing.');
+				}
+				const locationName = locationData.display_name;
+			
+				proj4.defs([
+				  ['EPSG:4326', '+proj=longlat +datum=WGS84 +no_defs'],
+				  ['EPSG:3067', '+proj=utm +zone=35 +ellps=GRS80 +units=m +no_defs']
+				]);
+				// Coordinates in WGS84
+				var wgs84Coord = [lng, lat];
+
+				// Convert to ETRS-TM35FIN
+				var etrsCoord =  proj4('EPSG:4326', 'EPSG:3067', wgs84Coord);
+				console.log('ETRS-TM35FIN Coordinates:', etrsCoord);
+				
+				const east = Math.floor(etrsCoord[0]); // Ensure correct E format
+				const north = Math.floor(etrsCoord[1]); // Use original N value
+
+				const eastLower = (Number(east) - 0).toString().padStart(6, '0');
+				const eastUpper = (Number(east) + 4).toString().padStart(6, '0');
+				const northLower = (Number(north) - 0).toString().padStart(7, '0').slice(-7);
+				const northUpper = (Number(north) + 4).toString().padStart(7, '0').slice(-7);
+
+				const elevation = await fetchElevation(eastLower, eastUpper, northLower, northUpper);
+				let lightningStats = { total: 0, nearby: 0 };
+				if (last) {
+					console.log('Haetaan viimeisimmät salamat');
+			        //lightningStats = await fetchLatestStrike(lat, lng);
+					lightningStats = await fetchLatestStrikes(lat, lng, lim);
+
+			    } else {
+			        lightningStats = await fetchAndDrawLightning(lat, lng);
+			    }
+
+	
+                const popupContent =   `Location: ${locationName}<br>
+                                    	Lat: ${lat.toFixed(5)}, Lon: ${lng.toFixed(5)}<br>
+                                       	Elevation: ${elevation} meters<br>
+			                           	<b>Salamahavaintoja ${radiusKm} km säteellä:</b> ${lightningStats.total}<br>
+			                           	<b>Näytetään lähimmät (${lim} kpl):</b> ${lightningStats.nearby}
+									   `;
+				
+				marker.bindPopup(popupContent).openPopup();
+			} catch (error) {
+				console.error('Error fetching data:', error);
+				marker.bindPopup(`Error fetching data: ${error.message}`).openPopup();
+			}
+		}
+
+		async function fetchElevation(eastLower, eastUpper, northLower, northUpper) {
+			const proxyUrl = window.location.hostname === 'localhost' ? 'http://localhost:8173/' : ''; // Käytä proxyä vain localhost:ssa
+			const elevationUrl = `https://avoin-karttakuva.maanmittauslaitos.fi/ortokuvat-ja-korkeusmallit/wcs/v2?api-key=7cd2ddae-9f2e-481c-99d0-404e7bc7a0b2&service=WCS&version=2.0.1&request=GetCoverage&CoverageID=korkeusmalli_2m&SUBSET=E(${eastLower},${eastUpper})&SUBSET=N(${northLower},${northUpper})&format=text/plain`;
+			console.log(`Fetching elevation data from proxyUrl: ${proxyUrl}`);
+			console.log(`Fetching elevation data from URL: ${proxyUrl}${elevationUrl}`);
+			const response = await fetch(`${proxyUrl}${elevationUrl}`);
+			if (!response.ok) {
+				throw new Error(`Elevation API request failed: ${response.statusText}`);
+			}
+			const data = await response.text();
+			console.log(`Got elevation data : ${data}`);
+			const lines = data.split("\n");
+			const height = parseFloat(lines[6]).toFixed(2);
+			return parseFloat(height);
+		}
+
+		function getBBoxFromPoint(lat, lon, radiusKm = 100) {
+		    const latOffset = radiusKm / 111; // leveysasteen muutos
+		    const lonOffset = radiusKm / (111 * Math.cos(lat * Math.PI / 180)); // pituusasteen muutos
+		
+		    const south = lat - latOffset;
+		    const north = lat + latOffset;
+		    const west = lon - lonOffset;
+		    const east = lon + lonOffset;
+		
+		    return `${west.toFixed(6)},${south.toFixed(6)},${east.toFixed(6)},${north.toFixed(6)}`;
+		}
+
+		async function fetchAndDrawLightning(latClicked, lonClicked) {
+			const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
+			console.log(`bbox : ${bbox}`);
+			const { markerLat, markerLng, beg, end, lim } = getHashParams();
+			//const start = "2025-09-17T00:00:00Z";
+			//const end = "2025-09-17T23:59:59Z";
+			//const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${start}&endtime=${end}&bbox=${bbox}`;
+			//const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg}&endtime=${end}&bbox=${bbox}`;
+			
+			let url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg}`;
+			if (end) {
+			    url += `&endtime=${end}`;
+			}
+			url += `&bbox=${bbox}`;
+
+			console.log(`url : ${url}`);
+		
+		    try {
+		        const response = await fetch(url);
+		        const text = await response.text();
+		        const parser = new DOMParser();
+		        const xmlDoc = parser.parseFromString(text, "application/xml");
+		
+		        const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
+		        if (!positionsText) {
+		            console.warn("⚠️ Ei löytynyt salamapositioita.");
+		            return { total: 0, nearby: 0 };
+		        }
+		
+		        const positions = positionsText.split(/\s+/);
+		        const salamat = [];
+		
+		        for (let i = 0; i < positions.length; i += 3) {
+		            const lat = parseFloat(positions[i]);
+		            const lon = parseFloat(positions[i + 1]);
+		            const timestamp = parseInt(positions[i + 2]) * 1000;
+		            const time = new Date(timestamp);
+		            const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000; // km
+		
+		            //salamat.push({ lat, lon, time, distance });
+					if (distance <= radiusKm) {
+						salamat.push({ lat, lon, time, distance });
+					}
+				}
+
+				console.log(`🔍 Salamahavaintoja haettu: ${salamat.length} kpl`);
+				//console.log("📋 Ensimmäiset 5 ennen sorttausta:");
+				//salamat.slice(0, 5).forEach((s, i) => {
+				//    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
+				//});
+				
+				salamat.sort((a, b) => a.distance - b.distance);
+				//console.log("📋 Ensimmäiset 5 sortin jälkeen:");
+				//salamat.slice(0, 5).forEach((s, i) => {
+				//    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
+				//});
+				const valitut = salamat.slice(0, lim);
+				//console.log("📋 Ensimmäiset 10 rajoituksen jälkeen:");
+				//const valitut2 = valitut.slice(0, 10);
+				//valitut2.forEach((s, i) => {
+				//    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
+				//});
+
+				valitut.forEach((s, i) => {
+					if (
+				        typeof s.lat !== 'number' || isNaN(s.lat) ||
+				        typeof s.lon !== 'number' || isNaN(s.lon)
+				    ) {
+				        console.warn(`⚠️ Virheellinen koordinaatti havainnossa ${i + 1}:`, s);
+				        return; // ohita tämä havainto
+				    }
+				    const marker = L.circleMarker([s.lat, s.lon], {
+				        radius: 8,
+				        color: 'red',
+				        fillColor: 'yellow',
+				        fillOpacity: 0.9
+				    }).addTo(map);
+				
+				    marker.bindTooltip(
+				        `⚡ ${formatShortDateTime(s.time)}<br>📏 ${s.distance.toFixed(1)} km`,
+				        {
+				            permanent: true,
+				            direction: 'top',
+				            offset: [0, -10],
+				            className: 'lightning-tooltip'
+				        }
+				    ).openTooltip();
+				});
+		
+		        //console.log(`✅ Salamahavaintoja: ${salamat.length} kpl`);
+				console.log(`✅ Näytetään ${valitut.length} lähintä salamaa:`);
+		        valitut.forEach((s, i) => {
+		            console.log(`${i + 1}. ${formatShortDateTime(s.time)} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
+		        });
+				return {
+				    total: salamat.length,
+				    nearby: valitut.length
+				};
+
+		    } catch (error) {
+		        console.error("❌ Virhe salamatietojen haussa:", error);
+				return { total: 0, nearby: 0 };
+		    };
+		}
+
+		async function fetchLatestStrike(latClicked, lonClicked) {
+		    const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
+		    const now = new Date();
+		    let end = new Date(now);
+		    let found = null;
+		    let maxTries = 10; // max 10 viikkoa taaksepäin
+		    let tries = 0;
+		
+		    while (!found && tries < maxTries) {
+		        const beg = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 päivää taaksepäin
+		        const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg.toISOString()}&endtime=${end.toISOString()}&bbox=${bbox}`;
+				console.log(`🔎 Yritetään aikavälillä ${formatShortDateTime(beg)} – ${formatShortDateTime(end)}`);
+		
+		        try {
+		            const response = await fetch(url);
+		            const text = await response.text();
+		            const xmlDoc = new DOMParser().parseFromString(text, "application/xml");
+		            const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
+		
+		            if (positionsText) {
+		                const positions = positionsText.split(/\s+/);
+		                const salamat = [];
+		
+		                for (let i = 0; i < positions.length; i += 3) {
+		                    const lat = parseFloat(positions[i]);
+		                    const lon = parseFloat(positions[i + 1]);
+		                    const timestamp = parseInt(positions[i + 2]) * 1000;
+		                    const time = new Date(timestamp);
+		                    const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
+		
+		                    //salamat.push({ lat, lon, time, distance });
+							if (distance <= radiusKm) {
+							    salamat.push({ lat, lon, time, distance });
+							}
+		                }
+		
+		                salamat.sort((a, b) => b.time - a.time); // uusimmat ensin
+		                found = salamat[0];
+		            }
+		        } catch (error) {
+		            console.error("❌ Virhe haussa:", error);
+		            break;
+		        }
+		
+		        // Siirry seuraavaan viikkoon taaksepäin
+		        end = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+		        tries++;
+		    }
+		
+		    if (found) {
+		        console.log(`⚡ Viimeisin salama löytyi: ${formatShortDateTime(found.time)} @ [${found.lat}, ${found.lon}]`);
+		
+		        const marker = L.circleMarker([found.lat, found.lon], {
+		            radius: 10,
+		            color: 'blue',
+		            fillColor: 'white',
+		            fillOpacity: 1
+		        }).addTo(map);
+		
+		        marker.bindTooltip(
+		            `⚡ Viimeisin salama<br>${formatShortDateTime(found.time)}<br>📏 ${found.distance.toFixed(1)} km`,
+		            {
+		                permanent: true,
+		                direction: 'top',
+		                offset: [0, -10],
+		                className: 'lightning-tooltip'
+		            }
+		        ).openTooltip();
+				const distanceKm = map.distance([latClicked, lonClicked], [found.lat, found.lon]) / 1000;
+
+			    let targetZoom = map.getZoom(); // oletus: ei muutosta
+			    if (distanceKm > 100) targetZoom = 7;
+			    else if (distanceKm > 50) targetZoom = 8;
+			    else if (distanceKm > 25) targetZoom = 9;
+			    else if (distanceKm > 10) targetZoom = 10;
+			
+			    map.setView(map.getCenter(), targetZoom); // säilyttää keskipisteen
+		    } else {
+		        console.warn("⚠️ Ei löytynyt salamahavaintoja viimeisten viikkojen ajalta.");
+		    }
+			return {
+			    total: found ? 1 : 0,
+			    nearby: found ? 1 : 0
+			};
+
+		}
+
+		async function fetchLatestStrikes(latClicked, lonClicked, lim = 100) {
+		    const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
+		    const now = new Date();
+		    let end = new Date(now);
+		    const salamat = [];
+		    let maxTries = 27;
+		    let tries = 0;
+			let piirrettavat = [];
+		
+		    while (salamat.length < lim && tries < maxTries) {
+		        const beg = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+		        const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg.toISOString()}&endtime=${end.toISOString()}&bbox=${bbox}`;
+		        console.log(`🔎 Yritetään aikavälillä ${formatShortDateTime(beg)} – ${formatShortDateTime(end)}`);
+		
+		        try {
+		            const response = await fetch(url);
+		            const text = await response.text();
+		            const xmlDoc = new DOMParser().parseFromString(text, "application/xml");
+		            const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
+		
+		            if (positionsText) {
+		                const positions = positionsText.split(/\s+/);
+		
+		                for (let i = 0; i < positions.length; i += 3) {
+		                    const lat = parseFloat(positions[i]);
+		                    const lon = parseFloat(positions[i + 1]);
+		                    const timestamp = parseInt(positions[i + 2]) * 1000;
+		                    const time = new Date(timestamp);
+		                    const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
+		                    //salamat.push({ lat, lon, time, distance });
+							if (distance <= radiusKm) {
+							    salamat.push({ lat, lon, time, distance });
+							}
+		                }
+		            }
+		        } catch (error) {
+		            console.error("❌ Virhe haussa:", error);
+		            break;
+		        }
+		
+		        end = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+		        tries++;
+		    }
+		
+		    if (salamat.length > 0) {
+		        salamat.sort((a, b) => b.time - a.time); // uusimmat ensin
+		        piirrettavat = salamat.slice(0, lim);
+				
+				// Piirrä kaikki paitsi viimeisin
+				for (let i = piirrettavat.length - 1; i > 0; i--) {
+				    const s = piirrettavat[i];
+				    const marker = L.circleMarker([s.lat, s.lon], {
+				        radius: 10,
+				        color: 'blue',
+				        fillColor: 'white',
+				        fillOpacity: 1
+				    }).addTo(map);
+				
+				    marker.bindTooltip(
+				        `⚡ ${formatShortDateTime(s.time)}<br>📏 ${s.distance.toFixed(1)} km`,
+				        {
+				            permanent: true,
+				            direction: 'top',
+				            offset: [0, -10],
+				            className: 'lightning-tooltip'
+				        }
+				    ).openTooltip();
+				}
+				
+				// Piirrä viimeisin salama viimeisenä ja korostettuna
+				const latest = piirrettavat[0];
+				map.createPane('top-marker');
+				map.getPane('top-marker').style.zIndex = 650;
+				
+				const latestMarker = L.circleMarker([latest.lat, latest.lon], {
+				    pane: 'top-marker',
+				    radius: 12,
+				    color: 'red',
+				    fillColor: 'yellow',
+				    fillOpacity: 1
+				}).addTo(map);
+				
+				latestMarker.bindTooltip(
+				    `⚡ Viimeisin salama<br>${formatShortDateTime(latest.time)}<br>📏 ${latest.distance.toFixed(1)} km`,
+				    {
+				        permanent: true,
+				        direction: 'top',
+				        offset: [0, -10],
+				        className: 'lightning-tooltip'
+				    }
+				).openTooltip();
+
+		        console.log(`⚡ Piirrettiin ${piirrettavat.length} salamaa`);
+		    } else {
+		        console.warn("⚠️ Ei löytynyt salamahavaintoja viimeisten viikkojen ajalta.");
+		    }
+		
+		    return {
+		        total: salamat.length,
+		        nearby: piirrettavat.length
+		    };
+		}
+		
+		
+    </script>
+</body>
+</html>
+
