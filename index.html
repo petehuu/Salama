@@ -10,6 +10,9 @@
     <!--    <script src="./geometryutil.js"  > </script> -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.6.2/proj4.js"></script>
     <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/src/leaflet.geometryutil.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -24,11 +27,93 @@
             width: 100%;
             height: 80%;
         }
+        #settingsPanel {
+          display: none;
+          position: absolute;
+          top: 80px;
+          right: 20px;
+          width: 320px;
+          background: #fff;
+          padding: 20px;
+          border-radius: 12px;
+          border: 1px solid #ccc;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+          z-index: 1000;
+          font-size: 14px;
+        }
+
+        .settings-group {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-bottom: 15px;
+        }
+
+        .field-group {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          width: 180px;
+        }
+
+        .settings-buttons {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        input[type="text"] {
+          max-width: 200px; /* tai esim. 100% jos haluat skaalautuvan */
+          width: 100%;
+          box-sizing: border-box;
+        }
+
+
     </style>
 </head>
 <body>
-    <h1>Salamat</h1>
+    <div id="headerRow" style="display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 0 20px;">
+      <h1>Salamat</h1>
+      <label>
+        <input type="radio" id="toggleSetting" name="toggleSettings" onclick="toggleSettings()"> Näytä asetukset
+
+      </label>
+    </div>
+    
     <div id="map"></div>
+
+    <div id="settingsPanel">
+      <h3>Asetukset</h3>
+
+      <div class="settings-group">
+        <label><input type="checkbox" id="last" onchange="handleDependencies()"> Haetaan viimeisimmät salamat</label>
+        <label><input type="checkbox" id="day"> Näytä päiväkohtaiset määrät</label>
+      </div>
+
+      <div class="settings-group" id="timeFields">
+          <div id="begField" class="field-group">
+            <label for="beg">Alkuaika (beg):<br></label>
+            <input type="text" id="beg">
+          </div>
+
+          <div id="endField" class="field-group">
+            <label for="end">Loppuaika (end):</label>
+            <input type="text" id="end">
+          </div>
+      </div>
+
+
+      <div class="settings-group">
+        <label>Salamien määrä (lim):<br><input type="number" id="lim" value="100"></label>
+        <label>Säde km (rad):<br><input type="number" id="rad" value="100"></label>
+      </div>
+
+      <div class="settings-buttons">
+        <button onclick="applySettings()">OK</button>
+        <button onclick="closeSettings()">Peruuta</button>
+      </div>
+    </div>
+    
+    
     <script>
 		function parseCompactTime(str) {
 		    if (!str || str.length !== 10) return null;
@@ -61,11 +146,13 @@
             };
         }
 
-		const params = getHashParams();
-		const { lat, lng, zoom, markerLat, markerLng, last, day } = params;	
-		let { beg, end, lim, radiusKm } = params;
+		//const params = getHashParams();
+		//const { lat, lng, zoom, markerLat, markerLng, last, day } = params;	
+		//let { beg, end, lim, radiusKm } = params;
+		let { lat, lng, zoom, markerLat, markerLng, last, day, beg, end, lim, radiusKm } = getHashParams();
 
         let map = L.map('map').setView([lat, lng], zoom);
+        let lightningLayer = L.featureGroup().addTo(map);
 
         // Tavallinen karttapohja (OpenStreetMap)
         const baseMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -115,7 +202,6 @@
 
 		
 		document.addEventListener('DOMContentLoaded', function() {
-            // Karttaklikkaus
             map.on('click', async function(event) {
                 const latitude = event.latlng.lat;
                 const longitude = event.latlng.lng;
@@ -133,13 +219,6 @@
                 updateHash();
             });
 
-            // Päivätilaston painike
-            const showDailyBtn = document.getElementById("show-daily");
-            if (showDailyBtn) {
-                showDailyBtn.onclick = ShowDaily;
-            } else {
-                console.warn("❗️Painiketta #show-daily ei löytynyt");
-            }
         });
 
 		
@@ -421,7 +500,7 @@
 				        color: 'red',
 				        fillColor: 'yellow',
 				        fillOpacity: 0.9
-				    }).addTo(map);
+				    }).addTo(lightningLayer);
 				
 				    marker.bindTooltip(
 				        `⚡ ${formatShortDateTime(s.time)}<br>📏 ${s.distance.toFixed(1)} km`,
@@ -593,7 +672,7 @@
 				        color: 'blue',
 				        fillColor: 'white',
 				        fillOpacity: 1
-				    }).addTo(map);
+				    }).addTo(lightningLayer);
 				
 				    marker.bindTooltip(
 				        `⚡ ${formatShortDateTime(s.time)}<br>📏 ${s.distance.toFixed(1)} km`,
@@ -617,7 +696,7 @@
 				    color: 'red',
 				    fillColor: 'yellow',
 				    fillOpacity: 1
-				}).addTo(map);
+				}).addTo(lightningLayer);
 				
 				latestMarker.bindTooltip(
 				    `⚡ Viimeisin salama<br>${formatShortDateTime(latest.time)}<br>📏 ${latest.distance.toFixed(1)} km`,
@@ -748,11 +827,160 @@
             chartWindow.document.close();
         }
 
+        function formatFlatpickrDate(dateInput) {
+          const d = new Date(dateInput);
+          if (isNaN(d.getTime())) return "";
+
+          const pad = n => String(n).padStart(2, '0');
+          const day = pad(d.getDate());
+          const month = pad(d.getMonth() + 1);
+          const year = d.getFullYear();
+          const hour = pad(d.getHours());
+          const minute = pad(d.getMinutes());
+
+          return `${day}.${month}.${year} ${hour}:${minute}`;
+        }
 
 
+        function toggleSettings() {
+          document.getElementById("settingsPanel").style.display = "block";
+
+          // Hae hash-parametrit
+          //const { last, day, beg, end, lim, radiusKm } = getHashParams();
+          console.log("toggleSettings: last, day, beg, end, lim, radiusKm", last, day, beg, end, lim, radiusKm);
+
+          // Aseta radiot
+          document.getElementById("last").checked = !!last;
+          document.getElementById("day").checked = !!day;
+
+          const limLocal = lim ?? "";
+          const radLocal = radiusKm ?? "";
+          
+          const begLocal = beg ? formatFlatpickrDate(beg) : "";
+          const endLocal = end ? formatFlatpickrDate(end) : "";
+
+          document.getElementById("beg").value = begLocal;
+          document.getElementById("end").value = endLocal;
+          begPicker.setDate(begLocal, true, "d.m.Y H:i");
+          endPicker.setDate(endLocal, true, "d.m.Y H:i");          
+          document.getElementById("lim").value = limLocal;
+          document.getElementById("rad").value = radLocal;
+        }
+
+
+        function closeSettings() {
+          document.getElementById("settingsPanel").style.display = "none";
+          document.getElementById("toggleSetting").checked = false;
+        }
+        
+        function handleDependencies() {
+          const lastChecked = document.getElementById("last").checked;
+          document.getElementById("begField").style.display = lastChecked ? "none" : "flex";
+          document.getElementById("endField").style.display = lastChecked ? "none" : "flex";
+        }
+        
+        function cancelSettings() {
+          document.getElementById("settingsPanel").style.display = "none";
+          document.getElementById("toggleSetting").checked = false;
+        }
+
+
+        function parseFinnishDate(dateStr) {
+          // Oletetaan muoto "DD.MM.YYYY HH:mm"
+          console.log("parseFinnishDate:", dateStr);
+          const match = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2})$/);
+          if (!match) return null;
+
+          const [_, dd, mm, yyyy, hh, min] = match;
+          return new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
+        }
+
+        function applySettings() {
+          const lastLocal = document.getElementById("last").checked;
+          const dayLocal = document.getElementById("day").checked;
+          const limLocal = document.getElementById("lim").value;
+          const radLocal = document.getElementById("rad").value;
+
+          let begLocal = document.getElementById("beg").value.trim();
+          let endLocal = document.getElementById("end").value.trim();
+          const now = new Date();
+
+          let begDate = null;
+          let endDate = null;
+
+          // Tarkista päivämäärät vain jos ei ole viimeisimpien hakua
+          if (!lastLocal) {
+            if (begLocal) {
+              begDate = parseFinnishDate(begLocal);
+              if (!begDate || isNaN(begDate.getTime())) {
+                alert("Alkuaika ei ole kelvollinen.");
+                return;
+              }
+              if (begDate > now) {
+                alert("Alkuaika ei saa olla tulevaisuudessa.");
+                return;
+              }
+            }
+
+            if (endLocal) {
+              endDate = parseFinnishDate(endLocal);
+              if (!endDate || isNaN(endDate.getTime())) {
+                alert("Loppuaika ei ole kelvollinen.");
+                return;
+              }
+              if (endDate > now) {
+                alert("Loppuaika ei saa olla tulevaisuudessa.");
+                return;
+              }
+            }
+
+            if (begDate && endDate && endDate < begDate) {
+              alert("Loppuaika ei voi olla ennen alkuaikaa.");
+              return;
+            }
+
+            // Jos day-moodi käytössä, voit lisätä lisälogiikkaa esim. tarkalle päivälle
+            if (dayLocal && !begDate) {
+              alert("Päivämäärä vaaditaan päivähakuun.");
+              return;
+            }
+          }
+
+          // Päivitä globaalit muuttujat
+          last = lastLocal;
+          day = dayLocal;
+          beg = begDate;
+          end = endDate;
+          lim = parseInt(limLocal);
+          radiusKm = parseFloat(radLocal);
+
+          updateHash();
+          closeSettings();
+
+          if (day) {
+            ShowDaily();
+          }
+
+          lightningLayer.clearLayers();
+          fetchElevationAndUpdatePopup(lat, lng, marker);
+          map.setView([lat, lng], zoom);
+          marker.setLatLng([lat, lng]);
+        }
+
+
+        const begPicker = flatpickr("#beg", {
+          enableTime: true,
+          time_24hr: true,
+          dateFormat: "d.m.Y H:i"
+        });
+
+        const endPicker = flatpickr("#end", {
+          enableTime: true,
+          time_24hr: true,
+          dateFormat: "d.m.Y H:i"
+        });
 		
     </script>
-    <div id="daily-strikes-view" style="display:none;"></div>
-    <button id="show-daily">📅 Näytä päiväkohtaiset salamat</button>
+
 </body>
 </html>
