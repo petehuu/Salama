@@ -56,12 +56,13 @@
         		end: parseCompactTime(params.get('end')) || null,
 				lim: parseInt(params.get('lim')) || 100,
 				last: params.has('last'),
-				radiusKm: parseFloat(params.get('rad')) || 100 // oletus 100 km
+				radiusKm: parseFloat(params.get('rad')) || 100, // oletus 100 km
+				day: params.has('day')
             };
         }
 
 		const params = getHashParams();
-		const { lat, lng, zoom, markerLat, markerLng, last } = params;	
+		const { lat, lng, zoom, markerLat, markerLng, last, day } = params;	
 		let { beg, end, lim, radiusKm } = params;
 
         let map = L.map('map').setView([lat, lng], zoom);
@@ -114,21 +115,34 @@
 
 		
 		document.addEventListener('DOMContentLoaded', function() {
-			map.on('click', async function(event) {
-				const latitude = event.latlng.lat;
-				const longitude = event.latlng.lng;
-							
-				if (marker) {
-					map.removeLayer(marker);
-				}
-				marker = L.marker([latitude, longitude]).addTo(map);
-				marker.bindPopup('Fetching elevation data...').openPopup();
-				drawDistanceCircles(latitude, longitude);
-				await fetchElevationAndUpdatePopup(latitude, longitude, marker);
-				await fetchAndDrawLightning(latitude, longitude);
-				updateHash();
-			});
-		});	
+            // Karttaklikkaus
+            map.on('click', async function(event) {
+                const latitude = event.latlng.lat;
+                const longitude = event.latlng.lng;
+
+                if (marker) {
+                    map.removeLayer(marker);
+                }
+
+                marker = L.marker([latitude, longitude]).addTo(map);
+                marker.bindPopup('Fetching elevation data...').openPopup();
+
+                drawDistanceCircles(latitude, longitude);
+                await fetchElevationAndUpdatePopup(latitude, longitude, marker);
+                await fetchAndDrawLightning(latitude, longitude);
+                updateHash();
+            });
+
+            // Päivätilaston painike
+            const showDailyBtn = document.getElementById("show-daily");
+            if (showDailyBtn) {
+                showDailyBtn.onclick = ShowDaily;
+            } else {
+                console.warn("❗️Painiketta #show-daily ei löytynyt");
+            }
+        });
+
+		
 		function formatCompactTime(isoString) {
 			const date = new Date(isoString);
 		    const yy = String(date.getFullYear()).slice(2); // esim. 2025 → "25"
@@ -138,6 +152,7 @@
 		    const mm = String(date.getMinutes()).padStart(2, '0');
 		    return `${yy}${MM}${dd}${hh}${mm}`;
 		}
+		
         function updateHash() {
             const center = map.getCenter();
             const zoomLevel = map.getZoom();
@@ -167,6 +182,10 @@
 				if (typeof radiusKm === 'number') {
 		            hash += `&rad=${radiusKm}`;
 		        }
+		        
+		        if (Boolean(day)) {
+				    hash += `&day`;
+				}
 
             }
             window.location.hash = hash;
@@ -298,7 +317,8 @@
 		}
 
 		async function fetchElevation(eastLower, eastUpper, northLower, northUpper) {
-			const proxyUrl = window.location.hostname === 'localhost' ? 'http://localhost:8173/' : ''; // Käytä proxyä vain localhost:ssa
+			//const proxyUrl = window.location.hostname === 'localhost' ? 'http://localhost:8173/' : ''; // Käytä proxyä vain localhost:ssa
+			const proxyUrl = ''; // Ei proxyä
 			const elevationUrl = `https://avoin-karttakuva.maanmittauslaitos.fi/ortokuvat-ja-korkeusmallit/wcs/v2?api-key=7cd2ddae-9f2e-481c-99d0-404e7bc7a0b2&service=WCS&version=2.0.1&request=GetCoverage&CoverageID=korkeusmalli_2m&SUBSET=E(${eastLower},${eastUpper})&SUBSET=N(${northLower},${northUpper})&format=text/plain`;
 			console.log(`Fetching elevation data from proxyUrl: ${proxyUrl}`);
 			console.log(`Fetching elevation data from URL: ${proxyUrl}${elevationUrl}`);
@@ -525,7 +545,7 @@
 		    let maxTries = 27;
 		    let tries = 0;
 			let piirrettavat = [];
-		
+			
 		    while (salamat.length < lim && tries < maxTries) {
 		        const beg = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
 		        const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg.toISOString()}&endtime=${end.toISOString()}&bbox=${bbox}`;
@@ -620,7 +640,119 @@
 		    };
 		}
 		
+		async function fetchDailyStrikes(lat, lng, radiusKm, begCompact) {
+            console.log("fetchDailyStrikes , params:", lat, lng, radiusKm, begCompact);
+            const now = new Date();
+            const begDate = begCompact ? new Date(begCompact) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            const maxSpan = 7 * 24 * 60 * 60 * 1000; // FMI:n maksimi: 7 päivää
+            const sixMonths = 6 * 30 * 24 * 60 * 60 * 1000;
+
+            let endDate;
+
+            if (!begCompact) {
+                endDate = now;
+            } else if (now - begDate > sixMonths) {
+                endDate = new Date(begDate.getTime() + sixMonths);
+            } else {
+                endDate = now;
+            }
+
+            const dailyCounts = {};
+            let currentBeg = new Date(begDate);
+            
+            while (currentBeg < endDate) {
+                const currentEnd = new Date(Math.min(currentBeg.getTime() + maxSpan, endDate.getTime()));
+                const bbox = getBBoxFromPoint(lat, lng, radiusKm);
+                const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${currentBeg.toISOString()}&endtime=${currentEnd.toISOString()}&bbox=${bbox}`;
+
+                console.log(`🔎 Haetaan aikaväliltä ${formatShortDateTime(currentBeg)} – ${formatShortDateTime(currentEnd)}`);
+
+                try {
+                    const response = await fetch(url);
+                    const text = await response.text();
+                    const xmlDoc = new DOMParser().parseFromString(text, "application/xml");
+                    const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
+
+                    if (positionsText) {
+                        const positions = positionsText.split(/\s+/);
+                        for (let i = 0; i < positions.length; i += 3) {
+                            const latStrike = parseFloat(positions[i]);
+                            const lonStrike = parseFloat(positions[i + 1]);
+                            const timestamp = parseInt(positions[i + 2]) * 1000;
+                            const time = new Date(timestamp);
+                            const distance = map.distance([lat, lng], [latStrike, lonStrike]) / 1000;
+
+                            if (distance <= radiusKm) {
+                                const key = time.toISOString().slice(0, 10).replace(/-/g, '');
+                                dailyCounts[key] = (dailyCounts[key] || 0) + 1;
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("❌ Virhe haussa:", error);
+                    break;
+                }
+
+                currentBeg = new Date(currentBeg.getTime() + maxSpan);
+            }
+            return { dailyCounts, begDate, endDate };
+
+        }
+        
+        
+        async function ShowDaily() {
+            const params = getHashParams();
+            const { lat, lng, radiusKm, beg } = params;
+
+            const chartWindow = window.open("", "_blank");
+            if (!chartWindow || chartWindow.closed || typeof chartWindow.closed === "undefined") {
+                alert("Uuden sivun avaus estetty. Salli ponnahdusikkunat.");
+                return;
+            }
+
+            // Kirjoita väliaikainen sisältö heti
+            chartWindow.document.write("<html><head><title>Ladataan...</title></head><body><p>⏳ Ladataan salamatietoja...</p></body></html>");
+            chartWindow.document.close();
+
+            const { dailyCounts, begDate, endDate }  = await fetchDailyStrikes(lat, lng, radiusKm, beg);
+            console.log("✅ Haetut salama määrät:", dailyCounts);
+
+            const max = Math.max(...Object.values(dailyCounts));
+            const maxPixels = 400;
+            let html = `<html><head><title>Päiväkohtaiset salamat</title>
+                <style>
+                    body { font-family: sans-serif; padding: 20px; }
+                    .row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+                    .label { flex: 0 0 auto; white-space: nowrap; }
+                    .bar { background: #00f; height: 10px; min-width: 1px; }
+                </style></head><body>
+                <h2>📅 Päiväkohtaiset salamat</h2>`;
+
+            Object.entries(dailyCounts).sort().forEach(([date, count]) => {
+                const formattedDate = `${date.slice(6, 8)}.${date.slice(4, 6)}.${date.slice(2, 4)}`;
+                const barLength = Math.round((count / max) * maxPixels);
+                html += `<div class="row">
+                            <div class="label">${formattedDate} ⚡ ${count}</div>
+                            <div class="bar" style="width:${barLength}px;"></div>
+                         </div>`;
+            });
+            const totalDays = Math.floor((endDate - begDate) / (1000 * 60 * 60 * 24)) + 1;
+            html += `<p>🔍 Päivien kokonaismäärä: ${totalDays}</p>`;
+            html += `<p>🔍 Päiviä, joilla salamoi: ${Object.keys(dailyCounts).length}</p>`;
+
+            html += `</body></html>`;
+
+            // Kirjoita lopullinen sisältö
+            chartWindow.document.open();
+            chartWindow.document.write(html);
+            chartWindow.document.close();
+        }
+
+
+
 		
     </script>
+    <div id="daily-strikes-view" style="display:none;"></div>
+    <button id="show-daily">📅 Näytä päiväkohtaiset salamat</button>
 </body>
 </html>
