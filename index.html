@@ -85,9 +85,11 @@
       <h3>Asetukset</h3>
 
       <div class="settings-group">
-        <label><input type="checkbox" id="last" onchange="handleDependencies()"> Haetaan viimeisimmät salamat</label>
-        <label><input type="checkbox" id="day"> Näytä päiväkohtaiset määrät</label>
-      </div>
+        <label><input type="checkbox" id="last" onchange="handleDependencies()"> Viimeisimmät havainnot</label>
+        <label><input type="checkbox" id="closest" onchange="handleDependencies()"> Lähimmät havainnot</label>
+        <label><input type="checkbox" id="day" onchange="handleDependencies()"> Päivän havainnot</label>
+     </div>
+
 
       <div class="settings-group" id="timeFields">
           <div id="begField" class="field-group">
@@ -128,16 +130,15 @@
             const hash = window.location.hash.substring(1);
             const params = new URLSearchParams(hash);
 			const now = new Date();
-    		const defaultBeg = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    		const defaultBeg = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
             return {
                 lat: parseFloat(params.get('lat')) || 60.1695,
                 lng: parseFloat(params.get('lng')) || 24.9354,
                 zoom: parseInt(params.get('zoom')) || 8,
-                //markerLat: parseFloat(params.get('markerLat')),
-				//markerLng: parseFloat(params.get('markerLng')),
 				markerLat: parseFloat(params.get('lat')),
                 markerLng: parseFloat(params.get('lng')),
-				beg: parseCompactTime(params.get('beg')) || defaultBeg,
+				//beg: parseCompactTime(params.get('beg')) || defaultBeg,
+				beg: parseCompactTime(params.get('beg')) || null,
         		end: parseCompactTime(params.get('end')) || null,
 				lim: parseInt(params.get('lim')) || 100,
 				last: params.has('last'),
@@ -150,6 +151,7 @@
 		//const { lat, lng, zoom, markerLat, markerLng, last, day } = params;	
 		//let { beg, end, lim, radiusKm } = params;
 		let { lat, lng, zoom, markerLat, markerLng, last, day, beg, end, lim, radiusKm } = getHashParams();
+		let closest = null;
 
         let map = L.map('map').setView([lat, lng], zoom);
         let lightningLayer = L.featureGroup().addTo(map);
@@ -371,16 +373,18 @@
 
 				const elevation = await fetchElevation(eastLower, eastUpper, northLower, northUpper);
 				let lightningStats = { total: 0, nearby: 0 };
-				if (last) {
-					console.log('Haetaan viimeisimmät salamat');
-			        //lightningStats = await fetchLatestStrike(lat, lng);
-					lightningStats = await fetchLatestStrikes(lat, lng, lim);
+                if (last) {
+                  console.log('Haetaan viimeisimmät salamat');
+                  lightningStats = await fetchLatestStrikes(lat, lng, lim);
 
-			    } else {
-			        lightningStats = await fetchAndDrawLightning(lat, lng);
-			    }
+                } else if (closest) {
+                  console.log('Haetaan lähimmät salamat');
+                  lightningStats = await fetchClosestStrikes(lat, lng, lim, radiusKm);
 
-	
+                } else {
+                  lightningStats = await fetchAndDrawLightning(lat, lng);
+                }
+
                 const popupContent =   `Location: ${locationName}<br>
                                     	Lat: ${lat.toFixed(5)}, Lon: ${lng.toFixed(5)}<br>
                                        	Elevation: ${elevation} meters<br>
@@ -399,7 +403,7 @@
 			//const proxyUrl = window.location.hostname === 'localhost' ? 'http://localhost:8173/' : ''; // Käytä proxyä vain localhost:ssa
 			const proxyUrl = ''; // Ei proxyä
 			const elevationUrl = `https://avoin-karttakuva.maanmittauslaitos.fi/ortokuvat-ja-korkeusmallit/wcs/v2?api-key=7cd2ddae-9f2e-481c-99d0-404e7bc7a0b2&service=WCS&version=2.0.1&request=GetCoverage&CoverageID=korkeusmalli_2m&SUBSET=E(${eastLower},${eastUpper})&SUBSET=N(${northLower},${northUpper})&format=text/plain`;
-			console.log(`Fetching elevation data from proxyUrl: ${proxyUrl}`);
+			//console.log(`Fetching elevation data from proxyUrl: ${proxyUrl}`);
 			console.log(`Fetching elevation data from URL: ${proxyUrl}${elevationUrl}`);
 			const response = await fetch(`${proxyUrl}${elevationUrl}`);
 			if (!response.ok) {
@@ -424,15 +428,65 @@
 		    return `${west.toFixed(6)},${south.toFixed(6)},${east.toFixed(6)},${north.toFixed(6)}`;
 		}
 
+
+        function normalizeLightningTimes(begRaw, endRaw) {
+          const now = new Date();
+          const maxSpanMs = 7 * 24 * 60 * 60 * 1000; // 7 päivää
+
+          let begDate = begRaw ? new Date(begRaw) : null;
+          let endDate = endRaw ? new Date(endRaw) : null;
+
+          // Jos molemmat puuttuvat → asetetaan vain beg = now, end = null
+          if (!begDate && !endDate) {
+            begDate = new Date(now);
+            return {
+              beg: begDate.toISOString(),
+              end: null
+            };
+          }
+
+          // Varmista että begDate on kelvollinen
+          if (!begDate || isNaN(begDate.getTime()) || begDate > now) {
+            begDate = new Date(now);
+          }
+
+          // Jos endDate puuttuu
+          if (!endDate) {
+            const span = now.getTime() - begDate.getTime();
+            endDate = span > maxSpanMs
+              ? new Date(begDate.getTime() + maxSpanMs)
+              : null; // ei aseteta, jos väli on sallittu
+          } else {
+            // Korjaa virheellinen endDate
+            if (isNaN(endDate.getTime()) || endDate > now || endDate < begDate) {
+              endDate = new Date(Math.min(
+                begDate.getTime() + maxSpanMs,
+                now.getTime()
+              ));
+            } else {
+              const span = endDate.getTime() - begDate.getTime();
+              if (span > maxSpanMs) {
+                endDate = new Date(begDate.getTime() + maxSpanMs);
+              }
+            }
+          }
+
+          return {
+            beg: begDate.toISOString(),
+            end: endDate ? endDate.toISOString() : null
+          };
+        }
+
+
 		async function fetchAndDrawLightning(latClicked, lonClicked) {
 			const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
-			console.log(`bbox : ${bbox}`);
-			const { markerLat, markerLng, beg, end, lim } = getHashParams();
-			//const start = "2025-09-17T00:00:00Z";
-			//const end = "2025-09-17T23:59:59Z";
-			//const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${start}&endtime=${end}&bbox=${bbox}`;
-			//const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg}&endtime=${end}&bbox=${bbox}`;
+			console.log(`fetchAndDrawLightning bbox : ${bbox}`);
+			const { markerLat, markerLng, beg: begRaw, end: endRaw, lim } = getHashParams();
+            console.log("fetchAndDrawLightning begRaw, endRaw : ", begRaw, endRaw);  
+			const { beg, end } = normalizeLightningTimes(begRaw, endRaw);
+			console.log("fetchAndDrawLightning beg, end : ", beg, end);
 			
+			//const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg}&endtime=${end}&bbox=${bbox}`;
 			let url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg}`;
 			if (end) {
 			    url += `&endtime=${end}`;
@@ -470,23 +524,8 @@
 				}
 
 				console.log(`🔍 Salamahavaintoja haettu: ${salamat.length} kpl`);
-				//console.log("📋 Ensimmäiset 5 ennen sorttausta:");
-				//salamat.slice(0, 5).forEach((s, i) => {
-				//    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
-				//});
-				
 				salamat.sort((a, b) => a.distance - b.distance);
-				//console.log("📋 Ensimmäiset 5 sortin jälkeen:");
-				//salamat.slice(0, 5).forEach((s, i) => {
-				//    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
-				//});
 				const valitut = salamat.slice(0, lim);
-				//console.log("📋 Ensimmäiset 10 rajoituksen jälkeen:");
-				//const valitut2 = valitut.slice(0, 10);
-				//valitut2.forEach((s, i) => {
-				//    console.log(`${i + 1}. ${s.time.toISOString()} @ [${s.lat}, ${s.lon}] – ${s.distance?.toFixed(2)} km`);
-				//});
-
 				valitut.forEach((s, i) => {
 					if (
 				        typeof s.lat !== 'number' || isNaN(s.lat) ||
@@ -513,8 +552,6 @@
 				    ).openTooltip();
 				});
 		
-		        //console.log(`✅ Salamahavaintoja: ${salamat.length} kpl`);
-				console.log(`✅ Näytetään ${valitut.length} lähintä salamaa:`);
 		        valitut.forEach((s, i) => {
 		            console.log(`${i + 1}. ${formatShortDateTime(s.time)} @ [${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}] – ${s.distance.toFixed(1)} km`);
 		        });
@@ -529,92 +566,6 @@
 		    };
 		}
 
-		async function fetchLatestStrike(latClicked, lonClicked) {
-		    const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
-		    const now = new Date();
-		    let end = new Date(now);
-		    let found = null;
-		    let maxTries = 10; // max 10 viikkoa taaksepäin
-		    let tries = 0;
-		
-		    while (!found && tries < maxTries) {
-		        const beg = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 päivää taaksepäin
-		        const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${beg.toISOString()}&endtime=${end.toISOString()}&bbox=${bbox}`;
-				console.log(`🔎 Yritetään aikavälillä ${formatShortDateTime(beg)} – ${formatShortDateTime(end)}`);
-		
-		        try {
-		            const response = await fetch(url);
-		            const text = await response.text();
-		            const xmlDoc = new DOMParser().parseFromString(text, "application/xml");
-		            const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
-		
-		            if (positionsText) {
-		                const positions = positionsText.split(/\s+/);
-		                const salamat = [];
-		
-		                for (let i = 0; i < positions.length; i += 3) {
-		                    const lat = parseFloat(positions[i]);
-		                    const lon = parseFloat(positions[i + 1]);
-		                    const timestamp = parseInt(positions[i + 2]) * 1000;
-		                    const time = new Date(timestamp);
-		                    const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
-		
-		                    //salamat.push({ lat, lon, time, distance });
-							if (distance <= radiusKm) {
-							    salamat.push({ lat, lon, time, distance });
-							}
-		                }
-		
-		                salamat.sort((a, b) => b.time - a.time); // uusimmat ensin
-		                found = salamat[0];
-		            }
-		        } catch (error) {
-		            console.error("❌ Virhe haussa:", error);
-		            break;
-		        }
-		
-		        // Siirry seuraavaan viikkoon taaksepäin
-		        end = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
-		        tries++;
-		    }
-		
-		    if (found) {
-		        console.log(`⚡ Viimeisin salama löytyi: ${formatShortDateTime(found.time)} @ [${found.lat}, ${found.lon}]`);
-		
-		        const marker = L.circleMarker([found.lat, found.lon], {
-		            radius: 10,
-		            color: 'blue',
-		            fillColor: 'white',
-		            fillOpacity: 1
-		        }).addTo(map);
-		
-		        marker.bindTooltip(
-		            `⚡ Viimeisin salama<br>${formatShortDateTime(found.time)}<br>📏 ${found.distance.toFixed(1)} km`,
-		            {
-		                permanent: true,
-		                direction: 'top',
-		                offset: [0, -10],
-		                className: 'lightning-tooltip'
-		            }
-		        ).openTooltip();
-				const distanceKm = map.distance([latClicked, lonClicked], [found.lat, found.lon]) / 1000;
-
-			    let targetZoom = map.getZoom(); // oletus: ei muutosta
-			    if (distanceKm > 100) targetZoom = 7;
-			    else if (distanceKm > 50) targetZoom = 8;
-			    else if (distanceKm > 25) targetZoom = 9;
-			    else if (distanceKm > 10) targetZoom = 10;
-			
-			    map.setView(map.getCenter(), targetZoom); // säilyttää keskipisteen
-		    } else {
-		        console.warn("⚠️ Ei löytynyt salamahavaintoja viimeisten viikkojen ajalta.");
-		    }
-			return {
-			    total: found ? 1 : 0,
-			    nearby: found ? 1 : 0
-			};
-
-		}
 
 		async function fetchLatestStrikes(latClicked, lonClicked, lim = 100) {
 		    const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
@@ -719,23 +670,126 @@
 		    };
 		}
 		
+		
+        function sleep(ms) {
+          return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+		
+		async function fetchAllStrikesSinceDate(latClicked, lonClicked, radiusKm) {
+          const bbox = getBBoxFromPoint(latClicked, lonClicked, radiusKm);
+          const salamat = [];
+          const now = new Date();
+          //let begLocal = new Date('2024-12-01T00:00:00Z');
+          if (!beg || isNaN(new Date(beg).getTime())) {
+              const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+              beg = oneYearAgo.toISOString();
+          }
+          let begLocal = new Date(beg);
+          const begTimeLog = formatShortDateTime(begLocal);
+          let endLocal = new Date(begLocal.getTime() + 7 * 24 * 60 * 60 * 1000); // viikko kerrallaan
+          let previousYear = endLocal.getFullYear();
+          let currentYear = endLocal.getFullYear();          
+
+          while (begLocal < now) {
+            if (endLocal > now) {
+               endLocal = now;
+            }
+            const url = `https://opendata.fmi.fi/wfs?request=GetFeature&storedquery_id=fmi::observations::lightning::multipointcoverage&parameters=peak_current&starttime=${begLocal.toISOString()}&endtime=${endLocal.toISOString()}&bbox=${bbox}`;
+            console.log(`🔎 Haetaan salamat: ${formatShortDateTime(begLocal)} – ${formatShortDateTime(endLocal)}`);
+
+            try {
+              const response = await fetch(url);
+              const text = await response.text();
+              const xmlDoc = new DOMParser().parseFromString(text, "application/xml");
+              const positionsText = xmlDoc.getElementsByTagName("gmlcov:positions")[0]?.textContent?.trim();
+
+              if (positionsText) {
+                const positions = positionsText.split(/\s+/);
+                for (let i = 0; i < positions.length; i += 3) {
+                  const lat = parseFloat(positions[i]);
+                  const lon = parseFloat(positions[i + 1]);
+                  const timestamp = parseInt(positions[i + 2]) * 1000;
+                  const time = new Date(timestamp);
+                  const distance = map.distance([latClicked, lonClicked], [lat, lon]) / 1000;
+                  if (distance <= radiusKm) {
+                    salamat.push({ lat, lon, time, distance });
+                  }
+                }
+              }
+            } catch (error) {
+              console.error("❌ Virhe haussa:", error);
+              break;
+            }
+            
+            currentYear = begLocal.getFullYear(); 
+            if (currentYear > previousYear) {
+                console.log(`⏳ Vuosi vaihtui: ${previousYear} → ${currentYear}, odotetaan hetki...`);
+                await sleep(1000); // 500 ms viive
+                previousYear = currentYear;
+            }
+
+            begLocal = new Date(endLocal);
+            endLocal = new Date(begLocal.getTime() + 7 * 24 * 60 * 60 * 1000);
+            if (endLocal > now) {
+               endLocal = now;
+            }
+          }
+
+          const endTimeLog = formatShortDateTime(endLocal);  
+          console.log(`⚡ Haettu ${salamat.length} salamahavaintoa ajalta ${begTimeLog} – ${endTimeLog}`);
+          return salamat;
+        }
+
+		
+		async function fetchClosestStrikes(latClicked, lonClicked, lim, radiusKm) {
+              const salamat = await fetchAllStrikesSinceDate(latClicked, lonClicked, radiusKm);
+
+              const piirrettavat = salamat
+                .map(s => ({
+                  ...s,
+                  distance: map.distance([latClicked, lonClicked], [s.lat, s.lon]) / 1000
+                }))
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, lim);
+
+              // Piirretään kartalle
+              piirrettavat.forEach(s => {
+                const marker = L.circleMarker([s.lat, s.lon], {
+                  radius: 8,
+                  color: 'purple',
+                  fillColor: 'white',
+                  fillOpacity: 1
+                }).addTo(lightningLayer);
+
+                marker.bindTooltip(
+                  `⚡ ${formatShortDateTime(s.time)}<br>📏 ${s.distance.toFixed(1)} km`,
+                  {
+                    permanent: true,
+                    direction: 'top',
+                    offset: [0, -10],
+                    className: 'lightning-tooltip'
+                  }
+                ).openTooltip();
+              });
+
+              console.log(`⚡ Piirrettiin ${piirrettavat.length} lähintä salamaa`);
+
+              return {
+                total: salamat.length,
+                nearby: piirrettavat.length
+              };
+            }
+
+		
 		async function fetchDailyStrikes(lat, lng, radiusKm, begCompact) {
             console.log("fetchDailyStrikes , params:", lat, lng, radiusKm, begCompact);
             const now = new Date();
-            const begDate = begCompact ? new Date(begCompact) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            const begDate = begCompact ? new Date(begCompact) : new Date(new Date(now).setMonth(now.getMonth() - 6));
+            const sixMonthsLater = new Date(new Date(begDate).setMonth(begDate.getMonth() + 6));
+            const endDate = !begCompact ? now : (now > sixMonthsLater ? sixMonthsLater : now);
+
             const maxSpan = 7 * 24 * 60 * 60 * 1000; // FMI:n maksimi: 7 päivää
-            const sixMonths = 6 * 30 * 24 * 60 * 60 * 1000;
-
-            let endDate;
-
-            if (!begCompact) {
-                endDate = now;
-            } else if (now - begDate > sixMonths) {
-                endDate = new Date(begDate.getTime() + sixMonths);
-            } else {
-                endDate = now;
-            }
-
             const dailyCounts = {};
             let currentBeg = new Date(begDate);
             
@@ -816,6 +870,8 @@
                          </div>`;
             });
             const totalDays = Math.floor((endDate - begDate) / (1000 * 60 * 60 * 24)) + 1;
+            html += `<p>📅 Aikaväli: ${formatShortDateTime(begDate)} – ${formatShortDateTime(endDate)}</p>`;
+            html += `<p>📍 Havaintojen säde: ${radiusKm} km</p>`;
             html += `<p>🔍 Päivien kokonaismäärä: ${totalDays}</p>`;
             html += `<p>🔍 Päiviä, joilla salamoi: ${Object.keys(dailyCounts).length}</p>`;
 
@@ -846,11 +902,13 @@
           document.getElementById("settingsPanel").style.display = "block";
 
           // Hae hash-parametrit
-          //const { last, day, beg, end, lim, radiusKm } = getHashParams();
+          //const { lat, lng, last, day, beg, end, lim, radiusKm } = getHashParams();
+          //console.log("toggleSettings lat, lng, marker:", lat, lng, marker);
           console.log("toggleSettings: last, day, beg, end, lim, radiusKm", last, day, beg, end, lim, radiusKm);
 
           // Aseta radiot
           document.getElementById("last").checked = !!last;
+          document.getElementById("closest").checked = !!closest;
           document.getElementById("day").checked = !!day;
 
           const limLocal = lim ?? "";
@@ -865,6 +923,7 @@
           endPicker.setDate(endLocal, true, "d.m.Y H:i");          
           document.getElementById("lim").value = limLocal;
           document.getElementById("rad").value = radLocal;
+          handleDependencies();
         }
 
 
@@ -875,10 +934,24 @@
         
         function handleDependencies() {
           const lastChecked = document.getElementById("last").checked;
-          document.getElementById("begField").style.display = lastChecked ? "none" : "flex";
-          document.getElementById("endField").style.display = lastChecked ? "none" : "flex";
+          const closestChecked = document.getElementById("closest").checked;
+          const dayChecked = document.getElementById("day").checked;
+
+          // "last" piilottaa molemmat kentät, "closest" näyttää vain alkupäivän
+          document.getElementById("begField").style.display = closestChecked ? "flex" : (lastChecked ? "none" : "flex");
+          document.getElementById("endField").style.display = (lastChecked || closestChecked) ? "none" : "flex";
+          
+          const ids = ["last", "closest", "day"];
+          const checkedId = ids.find(id => document.getElementById(id).checked);
+
+          // Piilota kaikki paitsi valittu
+          ids.forEach(id => {
+            const label = document.getElementById(id).parentElement;
+            label.style.display = (checkedId && id !== checkedId) ? "none" : "flex";
+          });
+          
         }
-        
+
         function cancelSettings() {
           document.getElementById("settingsPanel").style.display = "none";
           document.getElementById("toggleSetting").checked = false;
@@ -892,76 +965,94 @@
           if (!match) return null;
 
           const [_, dd, mm, yyyy, hh, min] = match;
-          return new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
+          const date = new Date(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
+          return isNaN(date.getTime()) ? null : date;
+        }
+
+        function isInvalidDate(date) {
+          return !date || isNaN(date.getTime());
+        }
+
+        function showError(msg) {
+          alert(msg);
+          return true;
         }
 
         function applySettings() {
           const lastLocal = document.getElementById("last").checked;
+          const closestLocal = document.getElementById('closest').checked;
           const dayLocal = document.getElementById("day").checked;
           const limLocal = document.getElementById("lim").value;
           const radLocal = document.getElementById("rad").value;
 
           let begLocal = document.getElementById("beg").value.trim();
           let endLocal = document.getElementById("end").value.trim();
-          const now = new Date();
+            const now = new Date();
+            let begDate = null;
+            let endDate = null;
 
-          let begDate = null;
-          let endDate = null;
-
-          // Tarkista päivämäärät vain jos ei ole viimeisimpien hakua
-          if (!lastLocal) {
-            if (begLocal) {
-              begDate = parseFinnishDate(begLocal);
-              if (!begDate || isNaN(begDate.getTime())) {
-                alert("Alkuaika ei ole kelvollinen.");
-                return;
+            if (lastLocal || closestLocal) {  // Hakutyyppi 2  Viimeisimmät havainnot tai Lähimmät havainnot
+              if (closestLocal) {  // Lähimmät havainnot
+                const parsed = parseFinnishDate(begLocal);
+                begDate = parsed ? parsed.toISOString() : null;
               }
-              if (begDate > now) {
-                alert("Alkuaika ei saa olla tulevaisuudessa.");
-                return;
+            } else if (dayLocal) {
+              // 🔹 Päivätilastot (hakutyyppi 3)
+              // beg saa puuttua, end lasketaan toiminnossa
+              if (begLocal) {
+                begDate = parseFinnishDate(begLocal);
+                if (!begDate || isNaN(begDate.getTime())) {
+                  alert("Päivämäärä ei ole kelvollinen.");
+                  return;
+                }
+                if (begDate > now) {
+                  alert("Päivämäärä ei saa olla tulevaisuudessa.");
+                  return;
+                }
+                //endDate = new Date(begDate.getTime() + 24 * 60 * 60 * 1000);
               }
-            }
 
-            if (endLocal) {
-              endDate = parseFinnishDate(endLocal);
-              if (!endDate || isNaN(endDate.getTime())) {
-                alert("Loppuaika ei ole kelvollinen.");
-                return;
-              }
-              if (endDate > now) {
-                alert("Loppuaika ei saa olla tulevaisuudessa.");
-                return;
-              }
-            }
+            } else {
+                // 🔹 Aikavälihaku (hakutyyppi 1)
+                const maxSpanMs = 7 * 24 * 60 * 60 * 1000;
+                begDate = parseFinnishDate(begLocal);
+                if (!begLocal || isInvalidDate(begDate)) return showError("Alkuaika ei ole kelvollinen.");
+                if (begDate > now) return showError("Alkuaika ei saa olla tulevaisuudessa.");
 
-            if (begDate && endDate && endDate < begDate) {
-              alert("Loppuaika ei voi olla ennen alkuaikaa.");
-              return;
-            }
-
-            // Jos day-moodi käytössä, voit lisätä lisälogiikkaa esim. tarkalle päivälle
-            if (dayLocal && !begDate) {
-              alert("Päivämäärä vaaditaan päivähakuun.");
-              return;
-            }
+                if (endLocal) {
+                  endDate = parseFinnishDate(endLocal);
+                  if (isInvalidDate(endDate)) return showError("Loppuaika ei ole kelvollinen.");
+                  if (endDate > now) return showError("Loppuaika ei saa olla tulevaisuudessa.");
+                  if (endDate < begDate) return showError("Loppuaika ei voi olla ennen alkuaikaa.");
+                  if (endDate - begDate > maxSpanMs) return showError("Aikaväli ei saa ylittää viikkoa.");
+                } else {
+                  if (now - begDate > maxSpanMs) return showError("Jos alkuaika on yli viikon vanha, loppuaika on pakollinen.");
+                  endDate = null;
+                }
           }
+          console.log("applySettings begDate,endDate:", begDate,endDate);
 
           // Päivitä globaalit muuttujat
           last = lastLocal;
+          closest = closestLocal;
           day = dayLocal;
           beg = begDate;
           end = endDate;
           lim = parseInt(limLocal);
           radiusKm = parseFloat(radLocal);
+          console.log("applySettings lat, lng, marker:", lat, lng, marker);
 
           updateHash();
           closeSettings();
 
           if (day) {
             ShowDaily();
+            return;
           }
-
+          
           lightningLayer.clearLayers();
+          ({ lat, lng } = getHashParams());
+          console.log("applySettings lat, lng, marker:", lat, lng, marker);
           fetchElevationAndUpdatePopup(lat, lng, marker);
           map.setView([lat, lng], zoom);
           marker.setLatLng([lat, lng]);
@@ -971,13 +1062,15 @@
         const begPicker = flatpickr("#beg", {
           enableTime: true,
           time_24hr: true,
-          dateFormat: "d.m.Y H:i"
+          dateFormat: "d.m.Y H:i",
+          allowInput: true
         });
 
         const endPicker = flatpickr("#end", {
           enableTime: true,
           time_24hr: true,
-          dateFormat: "d.m.Y H:i"
+          dateFormat: "d.m.Y H:i",
+          allowInput: true
         });
 		
     </script>
